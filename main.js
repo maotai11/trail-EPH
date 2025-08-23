@@ -31,7 +31,7 @@ function fmt(num, digits=2){ return isFinite(num)?Number(num).toFixed(digits):'�
 function parseNum(id){ const v=$(id).value.trim(); return v===''?NaN:Number(v); }
 function parsePaceStr(id){ const v=$(id).value.trim(); return v?paceToSecPerKm(v):NaN; }
 
-// ===== 模型計算 =====
+// ===== 模型計算（EP 只用於時間換算） =====
 function ep(distance_km, gain_m){ const d=Number(distance_km)||0, g=Number(gain_m)||0; return d + g/100; }
 function eph(ep_ekm, time_sec){ const h=(Number(time_sec)||0)/3600; return h>0? ep_ekm/h : NaN; }
 function epace(ep_ekm, time_sec){ const v=eph(ep_ekm,time_sec); if(!isFinite(v)||v<=0) return NaN; return secPerKmToPace((1/v)*3600); }
@@ -193,31 +193,29 @@ function staminaFactor(r){
   return f;
 }
 
-// ===== 風險（建議門檻＋文案） =====
+// ===== 風險（改為距離為主；EP 只做時間換算） =====
 function colorByRatio(x, g, y){
   if(!isFinite(x)||x<=0) return {cls:'red', label:'資料不足'};
   if(x>=g) return {cls:'green', label:'良好'};
   if(x>=y) return {cls:'yellow', label:'注意'};
   return {cls:'red', label:'偏低'};
 }
-function renderRisk(raceEP, predT){
+function renderRisk(raceEP_forInfo, predT){
   const list = $('riskList');
   if(!list) return {factor:1, items:[]};
 
+  const raceD = parseNum('raceD') || 0;
   const raceG = parseNum('raceG') || 0;
 
   const maxD=parseNum('maxLongD'), maxG=parseNum('maxLongG');
   const maxT=toSeconds($('maxLongTime').value.trim());
-  const wkD=parseNum('wkAvgD'), wkG=parseNum('wkAvgG');
+  const wkD=parseNum('wkAvgD'),   wkG=parseNum('wkAvgG');
 
-  const longEP = (Number(maxD)||0) + (Number(maxG)||0)/100;
-  const wkEP   = (Number(wkD)||0) + (Number(wkG)||0)/100;
-
-  // 比例
-  const r1 = longEP>0 && raceEP>0 ? longEP/raceEP : NaN;
-  const r2 = isFinite(maxT)&&isFinite(predT)&&predT>0 ? maxT/predT : NaN;
-  const r3 = wkEP>0 && raceEP>0 ? wkEP/raceEP : NaN;
-  const r4 = isFinite(wkG)&&raceG>0 ? wkG/raceG : NaN;
+  // 比例（距離為主）
+  const r1 = (isFinite(maxD)&&raceD>0) ? maxD/raceD : NaN;     // 單次最長距離 / 比賽距離
+  const r2 = (isFinite(maxT)&&isFinite(predT)&&predT>0) ? maxT/predT : NaN; // 單次最長時間 / 預估完賽
+  const r3 = (isFinite(wkD)&&raceD>0) ? wkD/raceD : NaN;       // 近4週平均距離 / 比賽距離
+  const r4 = (isFinite(wkG)&&raceG>0) ? wkG/raceG : NaN;       // 近4週平均爬升 / 比賽爬升
 
   const c1 = colorByRatio(r1, 0.40, 0.25);
   const c2 = colorByRatio(r2, 0.70, 0.50);
@@ -225,23 +223,23 @@ function renderRisk(raceEP, predT){
   const c4 = colorByRatio(r4, 1.00, 0.60);
 
   // 建議門檻（綠燈值）
-  const target_r1 = 0.40 * raceEP;     // ekm
+  const target_r1 = 0.40 * raceD;     // km
   const target_r2 = 0.70 * (predT||0); // sec
-  const target_r3 = 0.90 * raceEP;     // ekm/週
-  const target_r4 = 1.00 * raceG;      // m/週
+  const target_r3 = 0.90 * raceD;     // km/週
+  const target_r4 = 1.00 * raceG;     // m/週
 
   const sugg = (type, cur, tgt) => {
     if(!isFinite(tgt)) return '';
-    if(!isFinite(cur)) return `｜建議 ≥ ${type==='time'?secondsToHMS(tgt):type==='gain'?`${Math.round(tgt)} m`:`${fmt(tgt,2)} ekm`}`;
-    if(cur >= tgt) return `｜目標 ≥ ${type==='time'?secondsToHMS(tgt):type==='gain'?`${Math.round(tgt)} m`:`${fmt(tgt,2)} ekm`} ✔`;
+    if(!isFinite(cur)) return `｜建議 ≥ ${type==='time'?secondsToHMS(tgt):type==='gain'?`${Math.round(tgt)} m`:`${fmt(tgt,2)} km`}`;
+    if(cur >= tgt) return `｜目標 ≥ ${type==='time'?secondsToHMS(tgt):type==='gain'?`${Math.round(tgt)} m`:`${fmt(tgt,2)} km`} ✔`;
     const gap = tgt - cur;
     const gapStr = type==='time' ? secondsToHMS(gap)
                 : type==='gain' ? `${Math.round(gap)} m`
-                : `${fmt(gap,2)} ekm`;
-    return `｜建議 ≥ ${type==='time'?secondsToHMS(tgt):type==='gain'?`${Math.round(tgt)} m`:`${fmt(tgt,2)} ekm`}（尚差 ${gapStr}）`;
+                : `${fmt(gap,2)} km`;
+    return `｜建議 ≥ ${type==='time'?secondsToHMS(tgt):type==='gain'?`${Math.round(tgt)} m`:`${fmt(tgt,2)} km`}（尚差 ${gapStr}）`;
   };
 
-  // 風險懲罰（乘在 EPH 上）
+  // 懲罰（乘在 EPH 上）
   const factorOf = (cls, type) => {
     if(cls==='green') return 1;
     if(cls==='yellow'){
@@ -262,11 +260,10 @@ function renderRisk(raceEP, predT){
 
   const pct=(x)=> isFinite(x)? `${fmt(x*100,0)}%` : '—';
 
-  // 視覺列
   list.innerHTML = [
-    `<li><span class="dot ${c1.cls}"></span>單次最長 EP / 比賽 EP：${pct(r1)}（${c1.label}）${sugg('ep', longEP, target_r1)}</li>`,
+    `<li><span class="dot ${c1.cls}"></span>單次最長距離 / 比賽距離：${pct(r1)}（${c1.label}）${sugg('km', maxD, target_r1)}</li>`,
     `<li><span class="dot ${c2.cls}"></span>單次最長時間 / 預估完賽：${pct(r2)}（${c2.label}）${sugg('time', maxT, target_r2)}</li>`,
-    `<li><span class="dot ${c3.cls}"></span>近 4 週平均 EP / 比賽 EP：${pct(r3)}（${c3.label}）${sugg('ep', wkEP, target_r3)}</li>`,
+    `<li><span class="dot ${c3.cls}"></span>近 4 週平均距離 / 比賽距離：${pct(r3)}（${c3.label}）${sugg('km', wkD, target_r3)}</li>`,
     `<li><span class="dot ${c4.cls}"></span>近 4 週平均爬升 / 比賽爬升：${pct(r4)}（${c4.label}）${sugg('gain', wkG, target_r4)}</li>`
   ].join('');
 
@@ -290,13 +287,12 @@ function predictFinish(){
   const T_train = LAST_STATE.T || NaN;
   const T_ref = Math.max( 2400, T_train || 0 ); // 至少 40min
 
-  // 新手版（先估，再耐力，再風險）
+  // 新手版
   const EP_race_basic = ep(D,G);
   let t_pred_basic = isFinite(EPHb) && EPHb>0 ? (EP_race_basic/EPHb)*3600 : NaN;
   let Fb = isFinite(t_pred_basic)&&isFinite(T_ref)&&T_ref>0 ? staminaFactor(t_pred_basic / T_ref) : 1;
 
-  // 風險係數以校準版 raceEP 為基礎，若無則用 basic
-  const raceEP_forRisk = isFinite(LAST_STATE.Des) ? ep_cal(D,G,Des,r_use) : EP_race_basic;
+  const raceEP_forRisk = isFinite(LAST_STATE.Des) ? ep_cal(D,G,Des,r_use) : EP_race_basic; // 供顯示；距離改在 renderRisk 裡抓
   const risk = renderRisk(raceEP_forRisk, t_pred_basic);
 
   let t_pred_basic_adj = isFinite(t_pred_basic)
@@ -311,7 +307,7 @@ function predictFinish(){
 `EP_race = D + G/100 = ${fmt(D,2)} + ${fmt(G,0)}/100 = ${fmt(EP_race_basic,2)} ekm
 以我的 EPH（新手） = ${fmt(EPHb,2)} ekm/h，先估 T_pred = ${secondsToHMS(t_pred_basic)}
 耐力衰退：T_ref=${secondsToHMS(T_ref)}，r=T_pred/T_ref=${fmt(t_pred_basic/T_ref,2)} → F=${fmt(Fb,3)}
-風險調整：F_risk=${fmt(risk.factor,3)}（根據最長與週期量）
+風險調整：F_risk=${fmt(risk.factor,3)}（距離/時間/週期量門檻）
 調整後 EPH = ${fmt(EPHb*Fb*risk.factor,2)}，+緩衝 ${bufferPct||0}% → 預估 ${secondsToHMS(t_pred_basic_adj)}`;
 
   // 校準版
@@ -328,13 +324,12 @@ function predictFinish(){
     $('predCalNote').textContent = diff>=0 ? `✅ 關門內（餘裕 ${secondsToHMS(diff)}）` : `⚠️ 可能超過（差 ${secondsToHMS(-diff)}）`;
   }else{ $('predCalNote').textContent='—'; }
 
-  // 步驟附上風險來源
   $('predCalSteps').textContent =
 `EP_race_cal = D + G/100 + Des/R_loss = ${fmt(D,2)} + ${fmt(G,0)}/100 + ${isFinite(Des)?fmt(Des,0):'0'}/${fmt(r_use,0)} = ${fmt(EP_race_cal,2)} ekm
 以我的 EPH（校準） = ${fmt(EPHc,2)} ekm/h，先估 T_pred = ${secondsToHMS(t_pred_cal)}
 耐力衰退：T_ref=${secondsToHMS(T_ref)}，r=${fmt(t_pred_cal/T_ref,2)} → F=${fmt(Fc,3)}
-風險調整：F_risk=${fmt((risk&&risk.factor)||1,3)}（明細見上方列表）
-調整後 EPH = ${fmt(EPHc*Fc*((risk&&risk.factor)||1),2)}，+緩衝 ${bufferPct||0}% → 預估 ${secondsToHMS(t_pred_cal_adj)}`;
+風險調整：F_risk=${fmt(risk.factor,3)}
+調整後 EPH = ${fmt(EPHc*Fc*risk.factor,2)}，+緩衝 ${bufferPct||0}% → 預估 ${secondsToHMS(t_pred_cal_adj)}`;
 
   if(isFinite(t_pred_basic_adj) || isFinite(t_pred_cal_adj)){
     pushHistory({ ts:Date.now(), type:'完賽預估',
