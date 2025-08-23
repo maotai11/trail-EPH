@@ -1,4 +1,4 @@
-// ===== 核心工具（單檔版） =====
+// ===== 小工具 =====
 const $ = (id) => document.getElementById(id);
 
 function toSeconds(hms){
@@ -11,45 +11,30 @@ function toSeconds(hms){
 }
 function explainHoursFromSeconds(T){
   if(!isFinite(T)) return {h:0,m:0,s:0,hours:NaN, text:'T = —'};
-  const h=Math.floor(T/3600);
-  const m=Math.floor((T%3600)/60);
-  const s=Math.round(T%60);
+  const h=Math.floor(T/3600); const m=Math.floor((T%3600)/60); const s=Math.round(T%60);
   const pad=n=>n.toString().padStart(2,'0');
   const hms=`${h}:${pad(m)}:${pad(s)}`;
   const hours=T/3600;
-  const text=`T = ${hms} = ${h} h + ${m} m + ${s} s = ${h} + ${m}/60 + ${s}/3600 = ${hours.toFixed(3)} h`;
-  return {h,m,s,hours,text};
+  return {h,m,s,hours,text:`T = ${hms} = ${h} h + ${m} m + ${s} s = ${h} + ${m}/60 + ${s}/3600 = ${hours.toFixed(3)} h`};
 }
 function secondsToHMS(totalSec){
   if(!isFinite(totalSec)) return '—';
   const sign = totalSec<0?'-':'';
   totalSec = Math.abs(totalSec);
-  const h=Math.floor(totalSec/3600);
-  const m=Math.floor((totalSec%3600)/60);
-  const s=Math.round(totalSec%60);
+  const h=Math.floor(totalSec/3600); const m=Math.floor((totalSec%3600)/60); const s=Math.round(totalSec%60);
   const pad=n=>n.toString().padStart(2,'0');
   return `${sign}${h}:${pad(m)}:${pad(s)}`;
 }
-function paceToSecPerKm(paceStr){
-  if(!paceStr) return NaN;
-  const parts=paceStr.split(':').map(Number);
-  if(parts.length!==2) return NaN;
-  return parts[0]*60+parts[1];
-}
-function secPerKmToPace(sec){
-  if(!isFinite(sec)||sec<=0) return '—';
-  const m=Math.floor(sec/60), s=Math.round(sec%60);
-  return `${m}:${s.toString().padStart(2,'0')}`;
-}
+function paceToSecPerKm(paceStr){ if(!paceStr) return NaN; const parts=paceStr.split(':').map(Number); if(parts.length!==2) return NaN; return parts[0]*60+parts[1]; }
+function secPerKmToPace(sec){ if(!isFinite(sec)||sec<=0) return '—'; const m=Math.floor(sec/60), s=Math.round(sec%60); return `${m}:${s.toString().padStart(2,'0')}`; }
 function fmt(num, digits=2){ return isFinite(num)?Number(num).toFixed(digits):'—'; }
 function parseNum(id){ const v=$(id).value.trim(); return v===''?NaN:Number(v); }
 function parsePaceStr(id){ const v=$(id).value.trim(); return v?paceToSecPerKm(v):NaN; }
 
-// ===== 新手版/校準版 計算 =====
+// ===== 模型計算 =====
 function ep(distance_km, gain_m){ const d=Number(distance_km)||0, g=Number(gain_m)||0; return d + g/100; }
 function eph(ep_ekm, time_sec){ const h=(Number(time_sec)||0)/3600; return h>0? ep_ekm/h : NaN; }
 function epace(ep_ekm, time_sec){ const v=eph(ep_ekm,time_sec); if(!isFinite(v)||v<=0) return NaN; return secPerKmToPace((1/v)*3600); }
-
 function ep_cal(distance_km, gain_m, descent_m, r_loss){
   const d=Number(distance_km)||0, g=Number(gain_m)||0, des=Number(descent_m)||0, r=Number(r_loss)||Infinity;
   const downCost = (!isFinite(r)||r<=0) ? 0 : des/r;
@@ -75,12 +60,11 @@ function calibrate_r_loss(T_sec, Des_m, p_down_pct, Pflat_spk, Pdown_spk, g_down
   const D_eq_down=Tdown/Pflat;
   const delta=Math.max(0, D_eq_down - d_down_km);
   if(delta<=0) return { rloss: Infinity, method: isFinite(Pdown)?'pace_based':'slope_based', delta_down:0 };
-  let r=Des/delta;
-  if(r<80) r=80; if(r>800) r=800;
+  let r=Des/delta; if(r<80) r=80; if(r>800) r=800;
   return { rloss:r, method: isFinite(Pdown)?'pace_based':'slope_based', delta_down:delta };
 }
 
-// ===== 歷史（本機） =====
+// ===== 歷史 =====
 const HISTORY_KEY='eph_history_v1';
 function loadHistory(){ try{ return JSON.parse(localStorage.getItem(HISTORY_KEY))||[] }catch{return []} }
 function saveHistory(list){ localStorage.setItem(HISTORY_KEY, JSON.stringify(list)); }
@@ -96,10 +80,10 @@ function renderHistory(){
   el.innerHTML=`<table class="table"><thead><tr><th>時間</th><th>類型</th><th>摘要</th></tr></thead><tbody>${rows}</tbody></table>`;
 }
 
-// ===== 狀態（分享圖使用） =====
+// ===== 狀態（給分享圖/預估用） =====
 let LAST_STATE = null;
 
-// ===== UI 計算 =====
+// ===== 計算：我的訓練 =====
 function compute(){
   const D=parseNum('dist'), G=parseNum('gain'), Des=parseNum('descent');
   const T=toSeconds($('time').value.trim());
@@ -147,17 +131,17 @@ EPace_cal = ${secondsToHMS(T)} ÷ ${fmt(EPc,2)} = ${EPacec} 分/ekm`;
       : `新手與校準差異：${fmt(diffPct,1)}%。`;
   } else { $('deltaNote').textContent='—'; }
 
-  LAST_STATE = {
-    D, G, Des, T,
-    EPH_basic: EPHb, EPH_cal: EPHc, r_use,
-    mode: isFinite(EPHc) ? 'cal' : 'basic'
-  };
+  LAST_STATE = { D, G, Des, T, EPH_basic: EPHb, EPH_cal: EPHc, r_use, mode: isFinite(EPHc)?'cal':'basic' };
 
   pushHistory({ ts:Date.now(), type:'EPH 計算',
     summary:`D=${fmt(D,2)}km, G=${fmt(G,0)}m, Des=${isFinite(Des)?fmt(Des,0):'-'}m, T=${secondsToHMS(T)}, EPH=${fmt(EPHb,2)} / EPH_cal=${fmt(EPHc,2)} (R_loss=${fmt(r_use,0)})`
   });
+
+  // 每次算完，順手更新預估
+  predictFinish();
 }
 
+// ===== 計算：賽事→訓練時間 =====
 function plan(){
   const D=parseNum('raceD'), G=parseNum('raceG'), Des=parseNum('raceDes');
   const cutoff=toSeconds($('raceCutoff').value.trim());
@@ -194,9 +178,59 @@ EP_train = d + g/100 = ${fmt(d,2)} + ${fmt(g,0)}/100 = ${fmt(d + g/100,2)} ekm`;
 EP_race_cal = D + G/100 + Des/R_loss = ${fmt(D,2)} + ${fmt(G,0)}/100 + ${isFinite(Des)?fmt(Des,0):'0'}/${fmt(r_use,0)}
 EPH_race_cal = EP_race_cal / (T_cutoff/3600) = ${fmt((D + G/100 + (isFinite(Des)?Des/r_use:0)),2)} ÷ ${fmt(cutoff/3600,3)} = ${fmt(EPH_race_cal,2)} ekm/h`;
 
-  pushHistory({ ts:Date.now(), type:'關門→訓練',
+  pushHistory({ ts:Date.now(), type:'賽事→訓練',
     summary:`Race ${fmt(D,2)}km/+${fmt(G,0)}m T=${secondsToHMS(cutoff)} → Train ${fmt(d,2)}km/+${fmt(g,0)}m : ${secondsToHMS(t_train_basic)} / ${secondsToHMS(t_train_cal)} (R_loss=${fmt(r_use,0)})`
   });
+
+  // 更新預估
+  predictFinish();
+}
+
+// ===== 新功能：以「我的訓練 EPH」預估賽事完賽時間 =====
+function predictFinish(){
+  // 需要：我的訓練 EPH（basic/cal），以及右欄賽事 D/G/Des、cutoff、buffer
+  if(!LAST_STATE) return;
+  const EPHb = LAST_STATE.EPH_basic, EPHc = LAST_STATE.EPH_cal, r_use = LAST_STATE.r_use;
+  const D=parseNum('raceD'), G=parseNum('raceG'), Des=parseNum('raceDes');
+  const cutoff=toSeconds($('raceCutoff').value.trim());
+  const bufferPct = parseNum('bufferPct')||0;
+
+  // 新手版：不含下降
+  const EP_race_basic = ep(D,G);
+  const t_pred_basic = isFinite(EPHb) && EPHb>0 ? (EP_race_basic/EPHb)*3600*(1+bufferPct/100) : NaN;
+  $('predBasicTime').textContent = secondsToHMS(t_pred_basic);
+  if(isFinite(t_pred_basic) && isFinite(cutoff) && cutoff>0){
+    const diff = cutoff - t_pred_basic;
+    $('predBasicNote').textContent = diff>=0 ? `✅ 關門內（餘裕 ${secondsToHMS(diff)}）` : `⚠️ 可能超過（差 ${secondsToHMS(-diff)}）`;
+  }else{
+    $('predBasicNote').textContent = '—';
+  }
+  $('predBasicSteps').textContent =
+`EP_race = D + G/100 = ${fmt(D,2)} + ${fmt(G,0)}/100 = ${fmt(EP_race_basic,2)} ekm
+使用我的 EPH（新手） = ${fmt(EPHb,2)} ekm/h
+預估完賽時間 T_pred = EP_race / EPH = ${fmt(EP_race_basic,2)} ÷ ${fmt(EPHb,2)} × 3600 = ${secondsToHMS(t_pred_basic)}（已含緩衝 ${bufferPct||0}%）`;
+
+  // 校準版：含下降
+  const EP_race_cal = ep_cal(D,G,Des,r_use);
+  const t_pred_cal = isFinite(EPHc) && EPHc>0 ? (EP_race_cal/EPHc)*3600*(1+bufferPct/100) : NaN;
+  $('predCalTime').textContent = secondsToHMS(t_pred_cal);
+  if(isFinite(t_pred_cal) && isFinite(cutoff) && cutoff>0){
+    const diff = cutoff - t_pred_cal;
+    $('predCalNote').textContent = diff>=0 ? `✅ 關門內（餘裕 ${secondsToHMS(diff)}）` : `⚠️ 可能超過（差 ${secondsToHMS(-diff)}）`;
+  }else{
+    $('predCalNote').textContent = '—';
+  }
+  $('predCalSteps').textContent =
+`EP_race_cal = D + G/100 + Des/R_loss = ${fmt(D,2)} + ${fmt(G,0)}/100 + ${isFinite(Des)?fmt(Des,0):'0'}/${fmt(r_use,0)} = ${fmt(EP_race_cal,2)} ekm
+使用我的 EPH（校準） = ${fmt(EPHc,2)} ekm/h
+預估完賽時間 T_pred = EP_race_cal / EPH_cal = ${fmt(EP_race_cal,2)} ÷ ${fmt(EPHc,2)} × 3600 = ${secondsToHMS(t_pred_cal)}（已含緩衝 ${bufferPct||0}%）`;
+
+  // 紀錄（避免刷太兇，只在有數值時）
+  if(isFinite(t_pred_basic) || isFinite(t_pred_cal)){
+    pushHistory({ ts:Date.now(), type:'完賽預估',
+      summary:`Race ${fmt(D,2)}km/+${fmt(G,0)}m Des=${isFinite(Des)?fmt(Des,0):'-'}m → Pred ${secondsToHMS(t_pred_basic)} / ${secondsToHMS(t_pred_cal)}（cutoff ${secondsToHMS(cutoff)}）`
+    });
+  }
 }
 
 // ===== 分享圖（透明 PNG） =====
@@ -241,7 +275,7 @@ async function makeSharePNG(){
   }
 }
 
-// ===== 綁定事件、初始化 =====
+// ===== 綁定與初始化 =====
 document.addEventListener('DOMContentLoaded', ()=>{
   $('calcBtn').addEventListener('click', compute);
   $('resetBtn').addEventListener('click', ()=>{
@@ -250,14 +284,14 @@ document.addEventListener('DOMContentLoaded', ()=>{
     $('pflat').value='5:30'; $('rloss').value='250'; $('gdown').value='10';
     compute();
   });
-  $('planBtn').addEventListener('click', plan);
+  $('planBtn').addEventListener('click', ()=>{ plan(); predictFinish(); });
   $('clearHistoryBtn').addEventListener('click', ()=>{ localStorage.removeItem(HISTORY_KEY); renderHistory(); });
   $('shareBtn').addEventListener('click', makeSharePNG);
 
   // 初次載入
-  compute(); plan(); renderHistory();
+  compute(); plan(); predictFinish(); renderHistory();
 
-  // PWA：本機 file:// 跳過，部署到 http(s) 再啟用
+  // PWA（file:// 跳過）
   if(location.protocol!=='file:' && 'serviceWorker' in navigator){
     navigator.serviceWorker.register('sw.js').catch(()=>{});
   }
