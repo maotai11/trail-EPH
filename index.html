@@ -121,7 +121,7 @@
           <button id="shareBtn">匯出分享圖（PNG，透明）</button>
           <a id="downloadLink" class="ghost" style="display:none"></a>
         </div>
-        <!-- 分享用 canvas（隱藏，不佔空間；畫布改為 1000x420） -->
+        <!-- 分享用 canvas（隱藏，不佔空間；畫布 1000x420） -->
         <canvas id="shareCanvas" width="1000" height="420" style="display:none"></canvas>
       </section>
     </div>
@@ -177,6 +177,8 @@
               <div><span>預估完賽時間</span><strong id="predBasicTime">—</strong><small>hh:mm:ss</small></div>
               <div><span>判斷</span><strong id="predBasicNote">—</strong></div>
             </div>
+            <!-- 這裡新增：若可能超過，會顯示「需要的訓練 EPH 與訓練時間目標」 -->
+            <div class="hint" id="predBasicNeed"></div>
             <details class="steps"><summary>步驟</summary><pre id="predBasicSteps">—</pre></details>
           </div>
           <div class="result-card">
@@ -185,6 +187,8 @@
               <div><span>預估完賽時間</span><strong id="predCalTime">—</strong><small>hh:mm:ss</small></div>
               <div><span>判斷</span><strong id="predCalNote">—</strong></div>
             </div>
+            <!-- 這裡新增：校準版的需求值 -->
+            <div class="hint" id="predCalNeed"></div>
             <details class="steps"><summary>步驟</summary><pre id="predCalSteps">—</pre></details>
           </div>
         </div>
