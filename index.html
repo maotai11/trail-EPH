@@ -20,12 +20,20 @@
     .section-tip{color:var(--muted);font-size:13px;margin:-6px 0 10px}
     .risk-tip{line-height:1.9;margin-bottom:12px}
 
-    /* ↓ 折疊時不要留大空白 */
+    /* 折疊時不要留大空白 */
     details{margin:8px 0}
     details:not([open]){margin-bottom:0}
 
-    /* ↓ 卡片下緣緊一些，減少「大面積空白」視覺 */
+    /* 卡片底部縮一些，減少大面積空白 */
     .card{padding-bottom:12px}
+
+    /* 風險檢核列：字小、單行、不換行；窄螢幕可水平滑動 */
+    .risk-list{overflow-x:auto}
+    .risk-list li{
+      font-size:12px;
+      white-space:nowrap;
+      line-height:1.6;
+    }
   </style>
 </head>
 <body>
@@ -35,7 +43,7 @@
   </header>
 
   <main class="container two-col">
-    <!-- 左欄 -->
+    <!-- 左欄：輸入與 EP/EPH 結果 -->
     <div class="stack">
       <section class="card">
         <h2>我的訓練（輸入）</h2>
@@ -81,7 +89,6 @@
         </div>
       </section>
 
-      <!-- 計算結果 -->
       <section class="card">
         <h2>結果（新手 vs 校準）</h2>
         <p class="section-tip">上面輸入的訓練數據所得到的 EP / EPH；校準版會考慮下降成本。</p>
@@ -114,12 +121,12 @@
           <button id="shareBtn">匯出分享圖（PNG，透明）</button>
           <a id="downloadLink" class="ghost" style="display:none"></a>
         </div>
-        <!-- 分享用 canvas（隱藏，不佔空間） -->
+        <!-- 分享用 canvas（隱藏，不佔空間；畫布改為 1000x420） -->
         <canvas id="shareCanvas" width="1000" height="420" style="display:none"></canvas>
       </section>
     </div>
 
-    <!-- 右欄 -->
+    <!-- 右欄：換算與預估 -->
     <div class="stack">
       <section class="card">
         <h2>時間換算（賽事→訓練）</h2>
