@@ -80,7 +80,7 @@ function renderHistory(){
   el.innerHTML=`<table class="table"><thead><tr><th>時間</th><th>類型</th><th>摘要</th></tr></thead><tbody>${rows}</tbody></table>`;
 }
 
-// ===== 狀態（分享/預估/風險用） =====
+// ===== 狀態 =====
 let LAST_STATE = null;
 
 // ===== 計算：我的訓練 =====
@@ -103,7 +103,7 @@ EP = D + G/100 = ${fmt(D,2)} + ${fmt(G,0)}/100 = ${fmt(EPb,2)} ekm
 EPH = EP / (T/3600) = ${fmt(EPb,2)} / (${fmt(T/3600,3)} h) = ${fmt(EPHb,2)} ekm/h
 EPace = 時間/EP = ${secondsToHMS(T)} ÷ ${fmt(EPb,2)} = ${EPaceb} 分/ekm`;
 
-  // 校準 R_loss（可留空）
+  // 校準
   let cal={ rloss: rlossPreset, method:'preset', delta_down: NaN };
   if(isFinite(Pflat)&&isFinite(pDownPct)&&isFinite(Des)&&isFinite(T)&&T>0&&Des>0&&pDownPct>0){
     cal = calibrate_r_loss(T, Des, pDownPct, Pflat, Pdown, gDown);
@@ -184,7 +184,7 @@ EPH_race_cal = EP_race_cal / (T_cutoff/3600) = ${fmt((D + G/100 + (isFinite(Des)
   predictFinish();
 }
 
-// ===== 耐力衰退（Stamina）係數 =====
+// ===== 耐力衰退係數 =====
 function staminaFactor(r){
   if(!isFinite(r) || r<=1) return 1;
   let f = Math.pow(0.93, Math.log2(r)); // 每加倍 -7%
@@ -193,14 +193,19 @@ function staminaFactor(r){
   return f;
 }
 
-// ===== 風險係數（根據輸入的最長/週期量） =====
+// ===== 風險（建議門檻＋文案） =====
 function colorByRatio(x, g, y){
   if(!isFinite(x)||x<=0) return {cls:'red', label:'資料不足'};
   if(x>=g) return {cls:'green', label:'良好'};
   if(x>=y) return {cls:'yellow', label:'注意'};
   return {cls:'red', label:'偏低'};
 }
-function calcRisk(raceEP, predT){
+function renderRisk(raceEP, predT){
+  const list = $('riskList');
+  if(!list) return {factor:1, items:[]};
+
+  const raceG = parseNum('raceG') || 0;
+
   const maxD=parseNum('maxLongD'), maxG=parseNum('maxLongG');
   const maxT=toSeconds($('maxLongTime').value.trim());
   const wkD=parseNum('wkAvgD'), wkG=parseNum('wkAvgG');
@@ -208,17 +213,35 @@ function calcRisk(raceEP, predT){
   const longEP = (Number(maxD)||0) + (Number(maxG)||0)/100;
   const wkEP   = (Number(wkD)||0) + (Number(wkG)||0)/100;
 
+  // 比例
   const r1 = longEP>0 && raceEP>0 ? longEP/raceEP : NaN;
   const r2 = isFinite(maxT)&&isFinite(predT)&&predT>0 ? maxT/predT : NaN;
   const r3 = wkEP>0 && raceEP>0 ? wkEP/raceEP : NaN;
-  const r4 = isFinite(wkG)&&isFinite(parseNum('raceG')) && parseNum('raceG')>0 ? wkG/parseNum('raceG') : NaN;
+  const r4 = isFinite(wkG)&&raceG>0 ? wkG/raceG : NaN;
 
   const c1 = colorByRatio(r1, 0.40, 0.25);
   const c2 = colorByRatio(r2, 0.70, 0.50);
   const c3 = colorByRatio(r3, 0.90, 0.60);
   const c4 = colorByRatio(r4, 1.00, 0.60);
 
-  // 風險懲罰（乘在 EPH 上，僅往下修）
+  // 建議門檻（綠燈值）
+  const target_r1 = 0.40 * raceEP;     // ekm
+  const target_r2 = 0.70 * (predT||0); // sec
+  const target_r3 = 0.90 * raceEP;     // ekm/週
+  const target_r4 = 1.00 * raceG;      // m/週
+
+  const sugg = (type, cur, tgt) => {
+    if(!isFinite(tgt)) return '';
+    if(!isFinite(cur)) return `｜建議 ≥ ${type==='time'?secondsToHMS(tgt):type==='gain'?`${Math.round(tgt)} m`:`${fmt(tgt,2)} ekm`}`;
+    if(cur >= tgt) return `｜目標 ≥ ${type==='time'?secondsToHMS(tgt):type==='gain'?`${Math.round(tgt)} m`:`${fmt(tgt,2)} ekm`} ✔`;
+    const gap = tgt - cur;
+    const gapStr = type==='time' ? secondsToHMS(gap)
+                : type==='gain' ? `${Math.round(gap)} m`
+                : `${fmt(gap,2)} ekm`;
+    return `｜建議 ≥ ${type==='time'?secondsToHMS(tgt):type==='gain'?`${Math.round(tgt)} m`:`${fmt(tgt,2)} ekm`}（尚差 ${gapStr}）`;
+  };
+
+  // 風險懲罰（乘在 EPH 上）
   const factorOf = (cls, type) => {
     if(cls==='green') return 1;
     if(cls==='yellow'){
@@ -234,28 +257,28 @@ function calcRisk(raceEP, predT){
     if(type==='r4') return 0.94;
     return 1;
   };
-
   const f1=factorOf(c1.cls,'r1'), f2=factorOf(c2.cls,'r2'), f3=factorOf(c3.cls,'r3'), f4=factorOf(c4.cls,'r4');
   const factor = f1*f2*f3*f4;
 
   const pct=(x)=> isFinite(x)? `${fmt(x*100,0)}%` : '—';
-  const items = [
-    {name:'單次最長 EP / 比賽 EP', ratio:r1, cls:c1.cls, label:c1.label, f:f1},
-    {name:'單次最長時間 / 預估完賽', ratio:r2, cls:c2.cls, label:c2.label, f:f2},
-    {name:'近 4 週平均 EP / 比賽 EP', ratio:r3, cls:c3.cls, label:c3.label, f:f3},
-    {name:'近 4 週平均爬升 / 比賽爬升', ratio:r4, cls:c4.cls, label:c4.label, f:f4},
-  ];
-  return { factor, items, pct };
-}
-function renderRisk(raceEP, predT){
-  const list = $('riskList');
-  if(!list) return {factor:1, items:[]};
-  const r = calcRisk(raceEP, predT);
-  list.innerHTML = r.items.map(it=>`<li><span class="dot ${it.cls}"></span>${it.name}：${r.pct(it.ratio)}（${it.label}）</li>`).join('');
-  return r;
+
+  // 視覺列
+  list.innerHTML = [
+    `<li><span class="dot ${c1.cls}"></span>單次最長 EP / 比賽 EP：${pct(r1)}（${c1.label}）${sugg('ep', longEP, target_r1)}</li>`,
+    `<li><span class="dot ${c2.cls}"></span>單次最長時間 / 預估完賽：${pct(r2)}（${c2.label}）${sugg('time', maxT, target_r2)}</li>`,
+    `<li><span class="dot ${c3.cls}"></span>近 4 週平均 EP / 比賽 EP：${pct(r3)}（${c3.label}）${sugg('ep', wkEP, target_r3)}</li>`,
+    `<li><span class="dot ${c4.cls}"></span>近 4 週平均爬升 / 比賽爬升：${pct(r4)}（${c4.label}）${sugg('gain', wkG, target_r4)}</li>`
+  ].join('');
+
+  return { factor, items:[
+    {ratio:r1, cls:c1.cls, f:f1},
+    {ratio:r2, cls:c2.cls, f:f2},
+    {ratio:r3, cls:c3.cls, f:f3},
+    {ratio:r4, cls:c4.cls, f:f4},
+  ]};
 }
 
-// ===== 完賽時間預估（含耐力衰退＋風險係數） =====
+// ===== 完賽時間預估（耐力衰退＋風險） =====
 function predictFinish(){
   if(!LAST_STATE) return;
 
@@ -265,17 +288,16 @@ function predictFinish(){
   const bufferPct = parseNum('bufferPct')||0;
 
   const T_train = LAST_STATE.T || NaN;
-  const T_ref = Math.max( 2400, T_train || 0 ); // 40min 下限
+  const T_ref = Math.max( 2400, T_train || 0 ); // 至少 40min
 
-  // 新手版
+  // 新手版（先估，再耐力，再風險）
   const EP_race_basic = ep(D,G);
   let t_pred_basic = isFinite(EPHb) && EPHb>0 ? (EP_race_basic/EPHb)*3600 : NaN;
   let Fb = isFinite(t_pred_basic)&&isFinite(T_ref)&&T_ref>0 ? staminaFactor(t_pred_basic / T_ref) : 1;
 
-  // 先用基礎數據算出 raceEP 與初估時間，再算風險係數
+  // 風險係數以校準版 raceEP 為基礎，若無則用 basic
   const raceEP_forRisk = isFinite(LAST_STATE.Des) ? ep_cal(D,G,Des,r_use) : EP_race_basic;
-  const initial_predT = isFinite(t_pred_basic) ? t_pred_basic : NaN;
-  const risk = renderRisk(raceEP_forRisk, initial_predT);
+  const risk = renderRisk(raceEP_forRisk, t_pred_basic);
 
   let t_pred_basic_adj = isFinite(t_pred_basic)
     ? (EP_race_basic/(EPHb*Fb*risk.factor))*3600*(1+bufferPct/100) : NaN;
@@ -306,25 +328,14 @@ function predictFinish(){
     $('predCalNote').textContent = diff>=0 ? `✅ 關門內（餘裕 ${secondsToHMS(diff)}）` : `⚠️ 可能超過（差 ${secondsToHMS(-diff)}）`;
   }else{ $('predCalNote').textContent='—'; }
 
-  // 將風險來源寫進步驟說明
-  const riskExpl = risk.items
-    .filter(it=>isFinite(it.ratio))
-    .map(it=>{
-      const name = it.name.replace(' / ', '/');
-      const pct = isFinite(it.ratio)?fmt(it.ratio*100,0)+'%':'—';
-      const cut = it.f<1 ? ` ×${fmt(it.f,2)}` : ' ×1';
-      return `${name}=${pct}（${it.label}）${cut}`;
-    }).join('\n');
-
+  // 步驟附上風險來源
   $('predCalSteps').textContent =
 `EP_race_cal = D + G/100 + Des/R_loss = ${fmt(D,2)} + ${fmt(G,0)}/100 + ${isFinite(Des)?fmt(Des,0):'0'}/${fmt(r_use,0)} = ${fmt(EP_race_cal,2)} ekm
 以我的 EPH（校準） = ${fmt(EPHc,2)} ekm/h，先估 T_pred = ${secondsToHMS(t_pred_cal)}
 耐力衰退：T_ref=${secondsToHMS(T_ref)}，r=${fmt(t_pred_cal/T_ref,2)} → F=${fmt(Fc,3)}
-風險調整：F_risk=${fmt(risk.factor,3)}
-${riskExpl || '（尚未填寫風險欄位，未調整）'}
-調整後 EPH = ${fmt(EPHc*Fc*risk.factor,2)}，+緩衝 ${bufferPct||0}% → 預估 ${secondsToHMS(t_pred_cal_adj)}`;
+風險調整：F_risk=${fmt((risk&&risk.factor)||1,3)}（明細見上方列表）
+調整後 EPH = ${fmt(EPHc*Fc*((risk&&risk.factor)||1),2)}，+緩衝 ${bufferPct||0}% → 預估 ${secondsToHMS(t_pred_cal_adj)}`;
 
-  // 只在有數值時寫入歷史
   if(isFinite(t_pred_basic_adj) || isFinite(t_pred_cal_adj)){
     pushHistory({ ts:Date.now(), type:'完賽預估',
       summary:`Pred ${secondsToHMS(t_pred_basic_adj)} / ${secondsToHMS(t_pred_cal_adj)}（含耐力與風險調整）`
@@ -332,7 +343,7 @@ ${riskExpl || '（尚未填寫風險欄位，未調整）'}
   }
 }
 
-// ===== 分享圖（透明 PNG） =====
+// ===== 分享圖 =====
 async function makeSharePNG(){
   if(!LAST_STATE){ compute(); }
   const s = LAST_STATE || {};
@@ -382,7 +393,6 @@ document.addEventListener('DOMContentLoaded', ()=>{
   $('resetBtn').addEventListener('click', ()=>{
     ['dist','gain','descent','time','pdown','pdownpace','gdown','rloss','pflat']
       .forEach(id=>$(id).value='');
-    // 結果清空
     compute();
   });
 
@@ -400,10 +410,9 @@ document.addEventListener('DOMContentLoaded', ()=>{
   ['maxLongD','maxLongG','maxLongTime','wkAvgD','wkAvgG','raceD','raceG','raceDes','raceCutoff']
     .forEach(id=>{ const el=$(id); if(el) el.addEventListener('input', ()=>predictFinish()); });
 
-  // 初次載入：空白狀態 → 顯示 —
   compute(); plan(); predictFinish(); renderHistory();
 
-  // PWA — 新版：偵測新 SW 接管就自動重新載入
+  // PWA
   if (location.protocol !== 'file:' && 'serviceWorker' in navigator) {
     navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' })
       .then(() => {
