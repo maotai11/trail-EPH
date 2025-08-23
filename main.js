@@ -188,7 +188,6 @@ EPH_race_cal = EP_race_cal / (T_cutoff/3600) = ${fmt((D + G/100 + (isFinite(Des)
 
 // ===== 新功能：以「我的訓練 EPH」預估賽事完賽時間 =====
 function predictFinish(){
-  // 需要：我的訓練 EPH（basic/cal），以及右欄賽事 D/G/Des、cutoff、buffer
   if(!LAST_STATE) return;
   const EPHb = LAST_STATE.EPH_basic, EPHc = LAST_STATE.EPH_cal, r_use = LAST_STATE.r_use;
   const D=parseNum('raceD'), G=parseNum('raceG'), Des=parseNum('raceDes');
@@ -225,7 +224,6 @@ function predictFinish(){
 使用我的 EPH（校準） = ${fmt(EPHc,2)} ekm/h
 預估完賽時間 T_pred = EP_race_cal / EPH_cal = ${fmt(EP_race_cal,2)} ÷ ${fmt(EPHc,2)} × 3600 = ${secondsToHMS(t_pred_cal)}（已含緩衝 ${bufferPct||0}%）`;
 
-  // 紀錄（避免刷太兇，只在有數值時）
   if(isFinite(t_pred_basic) || isFinite(t_pred_cal)){
     pushHistory({ ts:Date.now(), type:'完賽預估',
       summary:`Race ${fmt(D,2)}km/+${fmt(G,0)}m Des=${isFinite(Des)?fmt(Des,0):'-'}m → Pred ${secondsToHMS(t_pred_basic)} / ${secondsToHMS(t_pred_cal)}（cutoff ${secondsToHMS(cutoff)}）`
@@ -291,8 +289,15 @@ document.addEventListener('DOMContentLoaded', ()=>{
   // 初次載入
   compute(); plan(); predictFinish(); renderHistory();
 
-  // PWA（file:// 跳過）
-  if(location.protocol!=='file:' && 'serviceWorker' in navigator){
-    navigator.serviceWorker.register('sw.js').catch(()=>{});
+  // PWA（file:// 跳過）— 新版：偵測新 SW 接管就自動重新載入
+  if (location.protocol !== 'file:' && 'serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' })
+      .then(() => {
+        navigator.serviceWorker.addEventListener('controllerchange', () => {
+          // 有新版本 SW 接管頁面時，強制重新載入一次以取得最新資源
+          window.location.reload();
+        });
+      })
+      .catch(() => {});
   }
 });
