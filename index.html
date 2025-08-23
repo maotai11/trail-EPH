@@ -18,15 +18,14 @@
     .muted-inline{color:var(--muted);font-size:12px;margin-left:6px}
     .hint-list{color:var(--muted);font-size:13px;line-height:1.6;margin:6px 0 0 16px}
     .section-tip{color:var(--muted);font-size:13px;margin:-6px 0 10px}
-    .risk-tip{line-height:1.9;margin-bottom:12px}   /* ← 新增：風險說明拉大行距與間距 */
-    .history.card{padding:12px}
-    .history h2{margin-bottom:6px}
-    .history .table th,.history .table td{font-size:12px;padding:6px}
-    .history .scroll{max-height:160px;overflow:auto;border:1px solid #1f2a44;border-radius:8px}
-    .dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;vertical-align:1px}
-    .green{background:#22c55e}.yellow{background:#eab308}.red{background:#ef4444}
-    .risk-list{font-size:14px;line-height:1.8;margin:6px 0 0 4px;padding-left:0}
-    .risk-list li{list-style:none;margin:4px 0}
+    .risk-tip{line-height:1.9;margin-bottom:12px}
+
+    /* ↓ 折疊時不要留大空白 */
+    details{margin:8px 0}
+    details:not([open]){margin-bottom:0}
+
+    /* ↓ 卡片下緣緊一些，減少「大面積空白」視覺 */
+    .card{padding-bottom:12px}
   </style>
 </head>
 <body>
@@ -36,11 +35,11 @@
   </header>
 
   <main class="container two-col">
-    <!-- 左欄：我的訓練（輸入） -->
+    <!-- 左欄 -->
     <div class="stack">
       <section class="card">
         <h2>我的訓練（輸入）</h2>
-        <p class="section-tip">填寫<strong>這次訓練</strong>的實際距離、爬升、（可選）下降與時間；下方會算出 EPH。</p>
+        <p class="section-tip">填寫<strong>這次訓練</strong>的距離、爬升、（可選）下降與時間；下方會算出 EPH。</p>
         <div class="form">
           <label><div class="label-title">距離 D（km）</div><input id="dist" type="number" min="0" step="0.01" placeholder="例如 8.33"></label>
           <label><div class="label-title">爬升 G（m）</div><input id="gain" type="number" min="0" step="1" placeholder="例如 536"></label>
@@ -68,12 +67,11 @@
               <summary>什麼是 R<sub>loss</sub>？</summary>
               <ul class="hint-list">
                 <li><b>定義：</b>每下降多少 <b>米</b>，折算成 <b>1 等效公里（ekm）</b> 的成本。例：R<sub>loss</sub>=250 表示下降 250 m ≒ 1 ekm 成本。</li>
-                <li><b>公式：</b>EP<sub>cal</sub> = D + G/100 + Des / R<sub>loss</sub>。R<sub>loss</sub> 越大 → 下降越「便宜」。</li>
+                <li><b>公式：</b>EP<sub>cal</sub> = D + G/100 + Des / R<sub>loss</sub>。</li>
                 <li><b>校準：</b>可用 <i>下坡時間占比</i> + <i>下坡配速</i>（或平均坡度）自動估算 R<sub>loss</sub>。</li>
-                <li><b>建議：</b>不知道就先空著；也可先填 250，再慢慢微調。</li>
               </ul>
             </details>
-            <div class="hint">若提供 p<sub>down</sub> + P<sub>down</sub> 會以最高可信度校準 R<sub>loss</sub>；否則以 g<sub>down</sub> 估算。</div>
+            <div class="hint">若提供 p<sub>down</sub> + P<sub>down</sub> 會以最高可信度校準；否則以 g<sub>down</sub> 估算。</div>
           </details>
 
           <div class="actions">
@@ -83,11 +81,10 @@
         </div>
       </section>
 
-      <!-- 結果 -->
+      <!-- 計算結果 -->
       <section class="card">
         <h2>結果（新手 vs 校準）</h2>
         <p class="section-tip">上面輸入的訓練數據所得到的 EP / EPH；校準版會考慮下降成本。</p>
-
         <div class="cards">
           <div class="result-card" id="basicCard">
             <h3>新手版（不含下降）</h3>
@@ -117,15 +114,16 @@
           <button id="shareBtn">匯出分享圖（PNG，透明）</button>
           <a id="downloadLink" class="ghost" style="display:none"></a>
         </div>
-        <canvas id="shareCanvas" width="1200" height="628" style="display:none"></canvas>
+        <!-- 分享用 canvas（隱藏，不佔空間） -->
+        <canvas id="shareCanvas" width="1000" height="420" style="display:none"></canvas>
       </section>
     </div>
 
-    <!-- 右欄：賽事→訓練、完賽預估 -->
+    <!-- 右欄 -->
     <div class="stack">
       <section class="card">
         <h2>時間換算（賽事→訓練）</h2>
-        <p class="section-tip">用目標賽事的距離/爬升/下降 + 關門時間，換算相同 EPH 下你的「訓練段」需要多久。</p>
+        <p class="section-tip">輸入目標賽事（距離/爬升/下降）與關門時間，然後輸入你的「訓練段（距離/爬升/下降）」；下方會算出這段訓練所需時間。</p>
         <div class="form grid-3">
           <label><div class="label-title">賽事距離（km）</div><input id="raceD" type="number" min="0" step="0.01" placeholder="例如 30"></label>
           <label><div class="label-title">賽事爬升（m）</div><input id="raceG" type="number" min="0" step="1" placeholder="例如 1800"></label>
@@ -140,17 +138,37 @@
             <button id="planResetBtn" class="ghost">重設</button>
           </div>
         </div>
+
+        <!-- 直接顯示計算結果 -->
+        <div class="cards mt8">
+          <div class="result-card">
+            <h3>新手版規劃</h3>
+            <div class="numbers">
+              <div><span>EPH<sub>race</sub></span><strong id="raceBasicEPH">—</strong><small>ekm/h</small></div>
+              <div><span>訓練時間</span><strong id="trainBasicTime">—</strong><small>hh:mm:ss</small></div>
+            </div>
+            <details class="steps"><summary>步驟</summary><pre id="planBasicSteps">—</pre></details>
+          </div>
+          <div class="result-card">
+            <h3>校準版規劃</h3>
+            <div class="numbers">
+              <div><span>EPH<sub>race,cal</sub></span><strong id="raceCalEPH">—</strong><small>ekm/h</small></div>
+              <div><span>訓練時間</span><strong id="trainCalTime">—</strong><small>hh:mm:ss</small></div>
+            </div>
+            <details class="steps"><summary>步驟</summary><pre id="planCalSteps">—</pre></details>
+          </div>
+        </div>
       </section>
 
       <section class="card">
         <h2>完賽時間預估（用我的訓練 EPH）</h2>
-        <p class="section-tip">已套用<strong>耐力衰退</strong>修正；若填下方「進階」風險檢核，還會再做保守調整。</p>
+        <p class="section-tip">已套用耐力衰退；若填下方「進階」風險檢核，會再做保守調整。</p>
         <div class="cards">
           <div class="result-card">
             <h3>新手版預估</h3>
             <div class="numbers">
               <div><span>預估完賽時間</span><strong id="predBasicTime">—</strong><small>hh:mm:ss</small></div>
-              <div><span>判斷</span><strong id="predBasicNote">—</strong><small></small></div>
+              <div><span>判斷</span><strong id="predBasicNote">—</strong></div>
             </div>
             <details class="steps"><summary>步驟</summary><pre id="predBasicSteps">—</pre></details>
           </div>
@@ -158,13 +176,12 @@
             <h3>校準版預估</h3>
             <div class="numbers">
               <div><span>預估完賽時間</span><strong id="predCalTime">—</strong><small>hh:mm:ss</small></div>
-              <div><span>判斷</span><strong id="predCalNote">—</strong><small></small></div>
+              <div><span>判斷</span><strong id="predCalNote">—</strong></div>
             </div>
             <details class="steps"><summary>步驟</summary><pre id="predCalSteps">—</pre></details>
           </div>
         </div>
 
-        <!-- 進階：風險檢核（折疊） -->
         <details class="mt8">
           <summary>進階：訓練量風險檢核（可選）</summary>
           <p class="section-tip risk-tip">填你最近訓練的「單次最長」與「近 4 週平均」。<br>若不足，預估時間會再保守一些。</p>
