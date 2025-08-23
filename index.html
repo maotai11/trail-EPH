@@ -10,18 +10,14 @@
   <link rel="apple-touch-icon" href="icon.png">
   <link rel="stylesheet" href="styles.css" />
   <style>
-    /* 版面調整：兩欄＋每欄堆疊 */
     .two-col{display:grid;gap:16px;grid-template-columns:1fr}
     @media (min-width:980px){.two-col{grid-template-columns:1fr 1fr}}
     .stack{display:grid;gap:16px}
-
-    /* 專有名詞同一行 */
     .label-title{display:flex;align-items:baseline;gap:6px;white-space:nowrap}
     .muted-inline{color:var(--muted);font-size:12px;margin-left:6px}
     .hint-list{color:var(--muted);font-size:13px;line-height:1.6;margin:6px 0 0 16px}
     .hint-list li{margin:2px 0}
-
-    /* 歷史精簡 */
+    .section-tip{color:var(--muted);font-size:13px;margin:-6px 0 10px}
     .history.card{padding:12px}
     .history h2{margin-bottom:6px}
     .history .table th,.history .table td{font-size:12px;padding:6px}
@@ -31,63 +27,34 @@
 <body>
   <header class="container">
     <h1>Trail EPH 計算器（MVP）</h1>
-    <p class="subtitle">新手友善 EP/EPH × 進階校準（R<sub>loss</sub>）｜含「訓練時間」換算</p>
+    <p class="subtitle">新手友善 EP/EPH × 進階校準（R<sub>loss</sub>）｜訓練與賽事換算</p>
   </header>
 
   <!-- 兩欄主體 -->
   <main class="container two-col">
-    <!-- 左欄：輸入參數 → 結果 -->
+    <!-- 左欄：我的訓練 → 結果 -->
     <div class="stack">
-      <!-- 輸入參數 -->
+      <!-- 我的訓練（輸入） -->
       <section class="card">
-        <h2>輸入參數</h2>
+        <h2>我的訓練（輸入）</h2>
+        <p class="section-tip">填寫<strong>這次訓練</strong>的實際距離、爬升、（可選）下降與時間；下方會算出 EPH。</p>
         <div class="form">
-          <label>
-            <div class="label-title">距離 D（km）</div>
-            <input id="dist" type="number" min="0" step="0.01" value="8.33">
-          </label>
-          <label>
-            <div class="label-title">爬升 G（m）</div>
-            <input id="gain" type="number" min="0" step="1" value="536">
-          </label>
-          <label>
-            <div class="label-title">下降 Des（m，可空）</div>
-            <input id="descent" type="number" min="0" step="1" placeholder="例如 520">
-          </label>
-          <label>
-            <div class="label-title">移動時間 T（hh:mm:ss）</div>
-            <input id="time" type="text" value="1:15:00" placeholder="例如 1:10:10">
-          </label>
+          <label><div class="label-title">距離 D（km）</div><input id="dist" type="number" min="0" step="0.01" value="8.33"></label>
+          <label><div class="label-title">爬升 G（m）</div><input id="gain" type="number" min="0" step="1" value="536"></label>
+          <label><div class="label-title">下降 Des（m，可空）</div><input id="descent" type="number" min="0" step="1" placeholder="例如 520"></label>
+          <label><div class="label-title">移動時間 T（hh:mm:ss）</div><input id="time" type="text" value="1:15:00" placeholder="例如 1:10:10"></label>
 
           <details class="mt8">
-            <summary>進階：校準/偏好（<span class="muted-inline">以下欄位可留空；只影響「校準版」與規劃</span>）</summary>
-
+            <summary>進階：校準/偏好（<span class="muted-inline">可留空；只影響「校準版」與規劃</span>）</summary>
             <div class="grid-2 mt8">
-              <label>
-                <div class="label-title">R<sub>loss</sub> 預設</div>
-                <input id="rloss" type="number" min="50" max="1000" step="1" value="250">
-              </label>
-              <label>
-                <div class="label-title">平路參考配速 P<sub>flat</sub><span class="muted-inline">（分/公里）</span></div>
-                <input id="pflat" type="text" value="5:30" placeholder="例如 5:30">
-              </label>
+              <label><div class="label-title">R<sub>loss</sub> 預設</div><input id="rloss" type="number" min="50" max="1000" step="1" value="250"></label>
+              <label><div class="label-title">平路參考配速 P<sub>flat</sub><span class="muted-inline">（分/公里）</span></div><input id="pflat" type="text" value="5:30" placeholder="例如 5:30"></label>
             </div>
-
             <div class="grid-3 mt8">
-              <label>
-                <div class="label-title">下坡時間占比 p<sub>down</sub><span class="muted-inline">（%）</span></div>
-                <input id="pdown" type="number" min="0" max="100" step="0.1" placeholder="例如 28">
-              </label>
-              <label>
-                <div class="label-title">下坡平均配速 P<sub>down</sub><span class="muted-inline">（分/公里，可空）</span></div>
-                <input id="pdownpace" type="text" placeholder="例如 4:15">
-              </label>
-              <label>
-                <div class="label-title">下坡平均坡度 g<sub>down</sub><span class="muted-inline">（%｜若無配速可估）</span></div>
-                <input id="gdown" type="number" min="2" max="30" step="0.5" value="10">
-              </label>
+              <label><div class="label-title">下坡時間占比 p<sub>down</sub><span class="muted-inline">（%）</span></div><input id="pdown" type="number" min="0" max="100" step="0.1" placeholder="例如 28"></label>
+              <label><div class="label-title">下坡平均配速 P<sub>down</sub><span class="muted-inline">（分/公里，可空）</span></div><input id="pdownpace" type="text" placeholder="例如 4:15"></label>
+              <label><div class="label-title">下坡平均坡度 g<sub>down</sub><span class="muted-inline">（%｜若無配速可估）</span></div><input id="gdown" type="number" min="2" max="30" step="0.5" value="10"></label>
             </div>
-
             <details class="mt8">
               <summary>什麼是 R<sub>loss</sub>？</summary>
               <ul class="hint-list">
@@ -97,7 +64,6 @@
                 <li><b>建議：</b>不知道就先用 250；等你累積資料再調整。</li>
               </ul>
             </details>
-
             <div class="hint">若提供 p<sub>down</sub> + P<sub>down</sub> 會以最高可信度校準 R<sub>loss</sub>；否則以 g<sub>down</sub> 估算。</div>
           </details>
 
@@ -111,9 +77,9 @@
       <!-- 結果（新手 vs 校準） -->
       <section class="card">
         <h2>結果（新手 vs 校準）</h2>
+        <p class="section-tip">上面輸入的訓練數據所得到的 EP / EPH；校準版會考慮下降成本。</p>
 
         <div class="cards">
-          <!-- 新手卡 -->
           <div class="result-card" id="basicCard">
             <h3>新手版（不含下降）</h3>
             <div class="numbers">
@@ -121,13 +87,9 @@
               <div><span>EPH</span><strong id="basicEPH">—</strong><small>ekm/h</small></div>
               <div><span>EPace</span><strong id="basicEPace">—</strong><small>分/ekm</small></div>
             </div>
-            <details class="steps">
-              <summary>查看計算步驟</summary>
-              <pre id="basicSteps">—</pre>
-            </details>
+            <details class="steps"><summary>查看計算步驟</summary><pre id="basicSteps">—</pre></details>
           </div>
 
-          <!-- 校準卡 -->
           <div class="result-card" id="calCard">
             <h3>進階校準版（含下降）</h3>
             <div class="numbers">
@@ -136,16 +98,12 @@
               <div><span>EPace<sub>cal</sub></span><strong id="calEPace">—</strong><small>分/ekm</small></div>
             </div>
             <div class="meta" id="calMeta">R<sub>loss</sub>（使用中）＝—（—）</div>
-            <details class="steps">
-              <summary>查看計算步驟</summary>
-              <pre id="calSteps">—</pre>
-            </details>
+            <details class="steps"><summary>查看計算步驟</summary><pre id="calSteps">—</pre></details>
           </div>
         </div>
 
         <div class="delta" id="deltaNote">—</div>
 
-        <!-- 分享圖 -->
         <div class="actions">
           <button id="shareBtn">匯出分享圖（PNG，透明）</button>
           <a id="downloadLink" class="ghost" style="display:none"></a>
@@ -154,11 +112,11 @@
       </section>
     </div>
 
-    <!-- 右欄：訓練時間換算器（輸入） → 訓練換算結果 -->
+    <!-- 右欄：賽事→訓練（輸入） → 訓練換算結果 → 完賽預估 -->
     <div class="stack">
-      <!-- 訓練輸入 -->
       <section class="card">
-        <h2>訓練時間換算器</h2>
+        <h2>時間換算（賽事→訓練）</h2>
+        <p class="section-tip">用目標賽事的距離/爬升/下降 + 關門時間，換算相同 EPH 下你的「訓練段」需要多久。</p>
         <div class="form grid-3">
           <label><div class="label-title">賽事距離（km）</div><input id="raceD" type="number" min="0" step="0.01" value="30"></label>
           <label><div class="label-title">賽事爬升（m）</div><input id="raceG" type="number" min="0" step="1" value="1800"></label>
@@ -172,33 +130,48 @@
         </div>
       </section>
 
-      <!-- 訓練結果 -->
       <section class="card">
         <h2>訓練換算結果</h2>
+        <p class="section-tip">依賽事關門換算訓練段所需時間。</p>
         <div class="cards">
           <div class="result-card">
             <h3>新手版規劃</h3>
             <div class="numbers">
               <div><span>EPH<sub>race</sub></span><strong id="raceBasicEPH">—</strong><small>ekm/h</small></div>
               <div><span>訓練時間</span><strong id="trainBasicTime">—</strong><small>hh:mm:ss</small></div>
-              <div></div>
             </div>
-            <details class="steps">
-              <summary>步驟</summary>
-              <pre id="planBasicSteps">—</pre>
-            </details>
+            <details class="steps"><summary>步驟</summary><pre id="planBasicSteps">—</pre></details>
           </div>
           <div class="result-card">
             <h3>校準版規劃</h3>
             <div class="numbers">
               <div><span>EPH<sub>race,cal</sub></span><strong id="raceCalEPH">—</strong><small>ekm/h</small></div>
               <div><span>訓練時間</span><strong id="trainCalTime">—</strong><small>hh:mm:ss</small></div>
-              <div></div>
             </div>
-            <details class="steps">
-              <summary>步驟</summary>
-              <pre id="planCalSteps">—</pre>
-            </details>
+            <details class="steps"><summary>步驟</summary><pre id="planCalSteps">—</pre></details>
+          </div>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>完賽時間預估（用我的訓練 EPH）</h2>
+        <p class="section-tip">用上方「我的訓練」算出的 EPH，反推目標賽事的完賽時間，並與關門時間比較。</p>
+        <div class="cards">
+          <div class="result-card">
+            <h3>新手版預估</h3>
+            <div class="numbers">
+              <div><span>預估完賽時間</span><strong id="predBasicTime">—</strong><small>hh:mm:ss</small></div>
+              <div><span>判斷</span><strong id="predBasicNote">—</strong><small></small></div>
+            </div>
+            <details class="steps"><summary>步驟</summary><pre id="predBasicSteps">—</pre></details>
+          </div>
+          <div class="result-card">
+            <h3>校準版預估</h3>
+            <div class="numbers">
+              <div><span>預估完賽時間</span><strong id="predCalTime">—</strong><small>hh:mm:ss</small></div>
+              <div><span>判斷</span><strong id="predCalNote">—</strong><small></small></div>
+            </div>
+            <details class="steps"><summary>步驟</summary><pre id="predCalSteps">—</pre></details>
           </div>
         </div>
       </section>
@@ -217,7 +190,6 @@
     <p>© 2025 Trail EPH. 這是 MVP 原型。計算以你輸入為準，請善用「查看計算步驟」。</p>
   </footer>
 
-  <!-- 單檔 JS（無 import），本機開檔可直接執行 -->
   <script src="main.js"></script>
 </body>
 </html>
