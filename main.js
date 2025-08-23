@@ -31,7 +31,7 @@ function fmt(num, digits=2){ return isFinite(num)?Number(num).toFixed(digits):'�
 function parseNum(id){ const v=$(id).value.trim(); return v===''?NaN:Number(v); }
 function parsePaceStr(id){ const v=$(id).value.trim(); return v?paceToSecPerKm(v):NaN; }
 
-// ===== 模型計算（EP 只用於時間換算） =====
+// ===== 模型（EP 只用於時間換算） =====
 function ep(distance_km, gain_m){ const d=Number(distance_km)||0, g=Number(gain_m)||0; return d + g/100; }
 function eph(ep_ekm, time_sec){ const h=(Number(time_sec)||0)/3600; return h>0? ep_ekm/h : NaN; }
 function epace(ep_ekm, time_sec){ const v=eph(ep_ekm,time_sec); if(!isFinite(v)||v<=0) return NaN; return secPerKmToPace((1/v)*3600); }
@@ -83,7 +83,7 @@ function renderHistory(){
 // ===== 狀態 =====
 let LAST_STATE = null;
 
-// ===== 計算：我的訓練 =====
+// ===== 計算：我的訓練 EP/EPH =====
 function compute(){
   const D=parseNum('dist'), G=parseNum('gain'), Des=parseNum('descent');
   const T=toSeconds($('time').value.trim());
@@ -140,7 +140,7 @@ EPace_cal = ${secondsToHMS(T)} ÷ ${fmt(EPc,2)} = ${EPacec} 分/ekm`;
   predictFinish();
 }
 
-// ===== 計算：賽事→訓練 =====
+// ===== 計算：賽事→訓練（同區顯示結果） =====
 function plan(){
   const D=parseNum('raceD'), G=parseNum('raceG'), Des=parseNum('raceDes');
   const cutoff=toSeconds($('raceCutoff').value.trim());
@@ -151,7 +151,6 @@ function plan(){
   const Pflat=parsePaceStr('pflat'), pDownPct=parseNum('pdown');
   const Pdown=parsePaceStr('pdownpace'), gDown=parseNum('gdown');
 
-  // 新手：賽事 EPH 與訓練段所需時間
   const EPH_race_basic = target_eph_from_cutoff(D,G,0,cutoff,Infinity);
   const t_train_basic  = train_time_from_target_eph(d,g,0,EPH_race_basic,Infinity) * (1+bufferPct/100);
   const explainCutoff = explainHoursFromSeconds(cutoff);
@@ -165,7 +164,6 @@ EPH_race = EP_race / (T_cutoff/3600) = ${fmt(D + G/100,2)} ÷ ${fmt(cutoff/3600,
 EP_train = d + g/100 = ${fmt(d,2)} + ${fmt(g,0)}/100 = ${fmt(d + g/100,2)} ekm
 所需時間 = EP_train / EPH_race × 3600 = ${secondsToHMS(t_train_basic)}`;
 
-  // 校準：含下降與 R_loss
   let cal={ rloss: rlossPreset, method:'preset' };
   if(isFinite(Pflat)&&isFinite(pDownPct)&&isFinite(Des)&&isFinite(cutoff)&&cutoff>0&&Des>0&&pDownPct>0){
     cal = calibrate_r_loss(cutoff, Des, pDownPct, Pflat, Pdown, gDown);
@@ -200,34 +198,42 @@ function staminaFactor(r){
   return f;
 }
 
-// ===== 風險（距離/時間/爬升） =====
+// ===== 風險檢核（含：單次最長爬升 / 比賽爬升） =====
 function colorByRatio(x, g, y){
   if(!isFinite(x)||x<=0) return {cls:'red', label:'資料不足'};
   if(x>=g) return {cls:'green', label:'良好'};
   if(x>=y) return {cls:'yellow', label:'注意'};
   return {cls:'red', label:'偏低'};
 }
-function renderRisk(raceEP_forInfo, predT){
+function renderRisk(_raceEP_forInfo, predT){
   const list = $('riskList');
   if(!list) return {factor:1, items:[]};
 
   const raceD = parseNum('raceD') || 0;
   const raceG = parseNum('raceG') || 0;
 
-  const maxD=parseNum('maxLongD'), maxG=parseNum('maxLongG');
-  const maxT=toSeconds($('maxLongTime').value.trim());
-  const wkD=parseNum('wkAvgD'),   wkG=parseNum('wkAvgG');
+  const maxD=parseNum('maxLongD');                 // 單次最長距離（km）
+  const maxG=parseNum('maxLongG');                 // 單次最長爬升（m）
+  const maxT=toSeconds($('maxLongTime').value.trim()); // 單次最長時間（sec）
+  const wkD=parseNum('wkAvgD');                    // 近 4 週平均距離（km/週）
+  const wkG=parseNum('wkAvgG');                    // 近 4 週平均爬升（m/週）
 
-  const r1 = (isFinite(maxD)&&raceD>0) ? maxD/raceD : NaN;
-  const r2 = (isFinite(maxT)&&isFinite(predT)&&predT>0) ? maxT/predT : NaN;
-  const r3 = (isFinite(wkD)&&raceD>0) ? wkD/raceD : NaN;
-  const r4 = (isFinite(wkG)&&raceG>0) ? wkG/raceG : NaN;
+  // 各比值
+  const r0 = (isFinite(maxG)&&raceG>0) ? maxG/raceG : NaN;         // 新增：單次最長爬升 / 比賽爬升
+  const r1 = (isFinite(maxD)&&raceD>0) ? maxD/raceD : NaN;         // 單次最長距離 / 比賽距離
+  const r2 = (isFinite(maxT)&&isFinite(predT)&&predT>0) ? maxT/predT : NaN; // 單次最長時間 / 預估完賽
+  const r3 = (isFinite(wkD)&&raceD>0) ? wkD/raceD : NaN;           // 近四週平均距離 / 比賽距離
+  const r4 = (isFinite(wkG)&&raceG>0) ? wkG/raceG : NaN;           // 近四週平均爬升 / 比賽爬升
 
+  // 顏色規則（可調）
+  const c0 = colorByRatio(r0, 0.60, 0.40);
   const c1 = colorByRatio(r1, 0.40, 0.25);
   const c2 = colorByRatio(r2, 0.70, 0.50);
   const c3 = colorByRatio(r3, 0.90, 0.60);
   const c4 = colorByRatio(r4, 1.00, 0.60);
 
+  // 綠燈建議值（顯示）
+  const target_r0 = 0.60 * raceG;     // m
   const target_r1 = 0.40 * raceD;     // km
   const target_r2 = 0.70 * (predT||0);// sec
   const target_r3 = 0.90 * raceD;     // km/週
@@ -235,42 +241,56 @@ function renderRisk(raceEP_forInfo, predT){
 
   const sugg = (type, cur, tgt) => {
     if(!isFinite(tgt)) return '';
-    if(!isFinite(cur)) return `｜建議 ≥ ${type==='time'?secondsToHMS(tgt):type==='gain'?`${Math.round(tgt)} m`:`${fmt(tgt,2)} km`}`;
-    if(cur >= tgt) return `｜目標 ≥ ${type==='time'?secondsToHMS(tgt):type==='gain'?`${Math.round(tgt)} m`:`${fmt(tgt,2)} km`} ✔`;
+    const typeLabel =
+      type==='time' ? secondsToHMS(tgt) :
+      type==='gain' ? `${Math.round(tgt)} m` :
+                      `${fmt(tgt,2)} km`;
+
+    if(!isFinite(cur)) return `｜建議 ≥ ${typeLabel}`;
+    if(cur >= tgt)   return `｜目標 ≥ ${typeLabel} ✔`;
+
     const gap = tgt - cur;
-    const gapStr = type==='time' ? secondsToHMS(gap)
-                : type==='gain' ? `${Math.round(gap)} m`
-                : `${fmt(gap,2)} km`;
-    return `｜建議 ≥ ${type==='time'?secondsToHMS(tgt):type==='gain'?`${Math.round(tgt)} m`:`${fmt(tgt,2)} km`}（尚差 ${gapStr}）`;
+    const gapStr =
+      type==='time' ? secondsToHMS(gap) :
+      type==='gain' ? `${Math.round(gap)} m` :
+                      `${fmt(gap,2)} km`;
+
+    return `｜建議 ≥ ${typeLabel}（尚差 ${gapStr}）`;
   };
 
+  // 懲罰（乘在 EPH 上）
   const factorOf = (cls, type) => {
     if(cls==='green') return 1;
     if(cls==='yellow'){
-      if(type==='r2') return 0.95;
-      if(type==='r1') return 0.97;
-      if(type==='r3') return 0.97;
-      if(type==='r4') return 0.98;
+      if(type==='r0') return 0.97; // 單次最長爬升（黃）
+      if(type==='r2') return 0.95; // 單次最長時間（黃）
+      if(type==='r1') return 0.97; // 單次最長距離（黃）
+      if(type==='r3') return 0.97; // 近四週距離（黃）
+      if(type==='r4') return 0.98; // 近四週爬升（黃）
     }
-    if(type==='r2') return 0.88;
-    if(type==='r1') return 0.90;
-    if(type==='r3') return 0.92;
-    if(type==='r4') return 0.94;
+    // red
+    if(type==='r0') return 0.93;     // 單次最長爬升（紅）
+    if(type==='r2') return 0.88;     // 單次最長時間（紅）
+    if(type==='r1') return 0.90;     // 單次最長距離（紅）
+    if(type==='r3') return 0.92;     // 近四週距離（紅）
+    if(type==='r4') return 0.94;     // 近四週爬升（紅）
     return 1;
   };
-  const f1=factorOf(c1.cls,'r1'), f2=factorOf(c2.cls,'r2'), f3=factorOf(c3.cls,'r3'), f4=factorOf(c4.cls,'r4');
-  const factor = f1*f2*f3*f4;
+  const f0=factorOf(c0.cls,'r0'), f1=factorOf(c1.cls,'r1'), f2=factorOf(c2.cls,'r2'), f3=factorOf(c3.cls,'r3'), f4=factorOf(c4.cls,'r4');
+  const factor = f0*f1*f2*f3*f4;
 
   const pct=(x)=> isFinite(x)? `${fmt(x*100,0)}%` : '—';
 
   list.innerHTML = [
-    `<li><span class="dot ${c1.cls}"></span>單次最長距離 / 比賽距離：${pct(r1)}（${c1.label}）｜${sugg('km', maxD, target_r1)}</li>`,
-    `<li><span class="dot ${c2.cls}"></span>單次最長時間 / 預估完賽：${pct(r2)}（${c2.label}）｜${sugg('time', maxT, target_r2)}</li>`,
-    `<li><span class="dot ${c3.cls}"></span>近 4 週平均距離 / 比賽距離：${pct(r3)}（${c3.label}）｜${sugg('km', wkD, target_r3)}</li>`,
-    `<li><span class="dot ${c4.cls}"></span>近 4 週平均爬升 / 比賽爬升：${pct(r4)}（${c4.label}）｜${sugg('gain', wkG, target_r4)}</li>`
+    `<li><span class="dot ${c0.cls}"></span>單次最長爬升 / 比賽爬升：${pct(r0)}（${c0.label}）${sugg('gain', maxG, target_r0)}</li>`,
+    `<li><span class="dot ${c1.cls}"></span>單次最長距離 / 比賽距離：${pct(r1)}（${c1.label}）${sugg('km',   maxD, target_r1)}</li>`,
+    `<li><span class="dot ${c2.cls}"></span>單次最長時間 / 預估完賽：${pct(r2)}（${c2.label}）${sugg('time', maxT, target_r2)}</li>`,
+    `<li><span class="dot ${c3.cls}"></span>近 4 週平均距離 / 比賽距離：${pct(r3)}（${c3.label}）${sugg('km',   wkD, target_r3)}</li>`,
+    `<li><span class="dot ${c4.cls}"></span>近 4 週平均爬升 / 比賽爬升：${pct(r4)}（${c4.label}）${sugg('gain', wkG, target_r4)}</li>`
   ].join('');
 
   return { factor, items:[
+    {ratio:r0, cls:c0.cls, f:f0},
     {ratio:r1, cls:c1.cls, f:f1},
     {ratio:r2, cls:c2.cls, f:f2},
     {ratio:r3, cls:c3.cls, f:f3},
@@ -278,7 +298,7 @@ function renderRisk(raceEP_forInfo, predT){
   ]};
 }
 
-// ===== 完賽時間預估 =====
+// ===== 完賽時間預估（耐力衰退 + 風險 + 緩衝） =====
 function predictFinish(){
   if(!LAST_STATE) return;
 
@@ -288,9 +308,9 @@ function predictFinish(){
   const bufferPct = parseNum('bufferPct')||0;
 
   const T_train = LAST_STATE.T || NaN;
-  const T_ref = Math.max( 2400, T_train || 0 ); // 至少 40min
+  const T_ref = Math.max(2400, T_train || 0); // 至少 40 分鐘
 
-  // 新手版
+  // 新手
   const EP_race_basic = ep(D,G);
   let t_pred_basic = isFinite(EPHb) && EPHb>0 ? (EP_race_basic/EPHb)*3600 : NaN;
   let Fb = isFinite(t_pred_basic)&&isFinite(T_ref)&&T_ref>0 ? staminaFactor(t_pred_basic / T_ref) : 1;
@@ -305,6 +325,7 @@ function predictFinish(){
     const diff = cutoff - t_pred_basic_adj;
     $('predBasicNote').textContent = diff>=0 ? `✅ 關門內（餘裕 ${secondsToHMS(diff)}）` : `⚠️ 可能超過（差 ${secondsToHMS(-diff)}）`;
   }else{ $('predBasicNote').textContent='—'; }
+
   $('predBasicSteps').textContent =
 `EP_race = D + G/100 = ${fmt(D,2)} + ${fmt(G,0)}/100 = ${fmt(EP_race_basic,2)} ekm
 以我的 EPH（新手） = ${fmt(EPHb,2)} ekm/h，先估 T_pred = ${secondsToHMS(t_pred_basic)}
@@ -312,7 +333,7 @@ function predictFinish(){
 風險調整：F_risk=${fmt(risk.factor,3)}（距離/時間/週期量）
 調整後 EPH = ${fmt(EPHb*Fb*risk.factor,2)}，+緩衝 ${bufferPct||0}% → 預估 ${secondsToHMS(t_pred_basic_adj)}`;
 
-  // 校準版
+  // 校準
   const EP_race_cal = ep_cal(D,G,Des,r_use);
   let t_pred_cal = isFinite(EPHc) && EPHc>0 ? (EP_race_cal/EPHc)*3600 : NaN;
   let Fc = isFinite(t_pred_cal)&&isFinite(T_ref)&&T_ref>0 ? staminaFactor(t_pred_cal / T_ref) : 1;
@@ -340,7 +361,7 @@ function predictFinish(){
   }
 }
 
-// ===== 分享圖 =====
+// ===== 分享圖（1000x420，底部留白更少） =====
 async function makeSharePNG(){
   if(!LAST_STATE){ compute(); }
   const s = LAST_STATE || {};
@@ -348,7 +369,6 @@ async function makeSharePNG(){
   const ephText = `EPH ${fmt(chosenEPH,2)} ekm/h`;
 
   const canvas = $('shareCanvas');
-  // 改成較扁的畫布，減少下方空白
   canvas.width = 1000;
   canvas.height = 420;
 
@@ -375,7 +395,6 @@ async function makeSharePNG(){
 
   ctx.fillText(`時間 ${secondsToHMS(s.T||0)}`, x, y);
 
-  // 大標題靠近底部，但保留 48px 邊距
   ctx.font = '800 84px system-ui,-apple-system,Segoe UI,Roboto,"Noto Sans","PingFang TC","Microsoft JhengHei",sans-serif';
   ctx.fillText(ephText, x, H-48);
 
