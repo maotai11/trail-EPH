@@ -18,15 +18,15 @@
     .muted-inline{color:var(--muted);font-size:12px;margin-left:6px}
     .hint-list{color:var(--muted);font-size:13px;line-height:1.6;margin:6px 0 0 16px}
     .section-tip{color:var(--muted);font-size:13px;margin:-6px 0 10px}
+    .risk-tip{line-height:1.9;margin-bottom:12px}   /* ← 新增：風險說明拉大行距與間距 */
     .history.card{padding:12px}
     .history h2{margin-bottom:6px}
     .history .table th,.history .table td{font-size:12px;padding:6px}
     .history .scroll{max-height:160px;overflow:auto;border:1px solid #1f2a44;border-radius:8px}
-    /* 風險燈號 */
     .dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;vertical-align:1px}
     .green{background:#22c55e}.yellow{background:#eab308}.red{background:#ef4444}
-    .risk-list{font-size:14px;line-height:1.7;margin:6px 0 0 4px;padding-left:0}
-    .risk-list li{list-style:none;margin:2px 0}
+    .risk-list{font-size:14px;line-height:1.8;margin:6px 0 0 4px;padding-left:0}
+    .risk-list li{list-style:none;margin:4px 0}
   </style>
 </head>
 <body>
@@ -36,7 +36,7 @@
   </header>
 
   <main class="container two-col">
-    <!-- 左欄：我的訓練 -->
+    <!-- 左欄：我的訓練（輸入） -->
     <div class="stack">
       <section class="card">
         <h2>我的訓練（輸入）</h2>
@@ -143,29 +143,6 @@
       </section>
 
       <section class="card">
-        <h2>訓練換算結果</h2>
-        <p class="section-tip">依賽事關門換算訓練段所需時間。</p>
-        <div class="cards">
-          <div class="result-card">
-            <h3>新手版規劃</h3>
-            <div class="numbers">
-              <div><span>EPH<sub>race</sub></span><strong id="raceBasicEPH">—</strong><small>ekm/h</small></div>
-              <div><span>訓練時間</span><strong id="trainBasicTime">—</strong><small>hh:mm:ss</small></div>
-            </div>
-            <details class="steps"><summary>步驟</summary><pre id="planBasicSteps">—</pre></details>
-          </div>
-          <div class="result-card">
-            <h3>校準版規劃</h3>
-            <div class="numbers">
-              <div><span>EPH<sub>race,cal</sub></span><strong id="raceCalEPH">—</strong><small>ekm/h</small></div>
-              <div><span>訓練時間</span><strong id="trainCalTime">—</strong><small>hh:mm:ss</small></div>
-            </div>
-            <details class="steps"><summary>步驟</summary><pre id="planCalSteps">—</pre></details>
-          </div>
-        </div>
-      </section>
-
-      <section class="card">
         <h2>完賽時間預估（用我的訓練 EPH）</h2>
         <p class="section-tip">已套用<strong>耐力衰退</strong>修正；若填下方「進階」風險檢核，還會再做保守調整。</p>
         <div class="cards">
@@ -190,7 +167,7 @@
         <!-- 進階：風險檢核（折疊） -->
         <details class="mt8">
           <summary>進階：訓練量風險檢核（可選）</summary>
-          <p class="section-tip">填你最近訓練的「單次最長」與「近 4 週平均」。若不足，預估時間會再保守一些。</p>
+          <p class="section-tip risk-tip">填你最近訓練的「單次最長」與「近 4 週平均」。<br>若不足，預估時間會再保守一些。</p>
           <div class="form grid-3">
             <label><div class="label-title">單次最長距離（km）</div><input id="maxLongD" type="number" min="0" step="0.1" placeholder="例如 24"></label>
             <label><div class="label-title">單次最長爬升（m）</div><input id="maxLongG" type="number" min="0" step="1" placeholder="例如 1200"></label>
