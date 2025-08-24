@@ -79,18 +79,26 @@ function renderHistory(){
 function staminaFactor(r){ if(!isFinite(r)||r<=1) return 1; let f=Math.pow(0.93, Math.log2(r)); return Math.min(1, Math.max(0.70, f)); }
 function colorByRatio(x,g,y){ if(!isFinite(x)||x<=0) return {cls:'risk-high', label:'資料不足'}; if(x>=g) return {cls:'risk-low', label:'良好'}; if(x>=y) return {cls:'risk-mid', label:'注意'}; return {cls:'risk-high', label:'偏低'}; }
 
+/**
+ * 回傳：
+ * - factor：訓練量風險乘數（維持既有規則）
+ * - level：綜合等級（低／中／高）
+ * - deficits：未達標項目數（只計算有資料且低於建議門檻者）
+ * - meetsAll：是否沒有未達標
+ */
 function renderRisk(_EP_race, predT){
-  const list=$('riskList'); if(!list) return {factor:1, level:'—'};
+  const list=$('riskList'); if(!list) return {factor:1, level:'—', deficits:0, meetsAll:true};
   const raceD=parseNum('raceD')||0, raceG=parseNum('raceG')||0;
   const maxD=parseNum('maxLongD'), maxG=parseNum('maxLongG'), maxT=toSeconds($('maxLongTime').value.trim());
   const wkD=parseNum('wkAvgD'), wkG=parseNum('wkAvgG');
 
-  const r0=(isFinite(maxG)&&raceG>0)? maxG/raceG : NaN;
-  const r1=(isFinite(maxD)&&raceD>0)? maxD/raceD : NaN;
-  const r2=(isFinite(maxT)&&isFinite(predT)&&predT>0)? maxT/predT : NaN;
-  const r3=(isFinite(wkD)&&raceD>0)? wkD/raceD : NaN;
-  const r4=(isFinite(wkG)&&raceG>0)? wkG/raceG : NaN;
+  const r0=(isFinite(maxG)&&raceG>0)? maxG/raceG : NaN;          // 單次最長爬升/比賽爬升
+  const r1=(isFinite(maxD)&&raceD>0)? maxD/raceD : NaN;          // 單次最長距離/比賽距離
+  const r2=(isFinite(maxT)&&isFinite(predT)&&predT>0)? maxT/predT : NaN; // 單次最長時間/預估完賽
+  const r3=(isFinite(wkD)&&raceD>0)? wkD/raceD : NaN;            // 4 週均距離/比賽距離
+  const r4=(isFinite(wkG)&&raceG>0)? wkG/raceG : NaN;            // 4 週均爬升/比賽爬升
 
+  // 著色與說明（沿用）
   const c0=colorByRatio(r0,0.60,0.40), c1=colorByRatio(r1,0.40,0.25), c2=colorByRatio(r2,0.70,0.50), c3=colorByRatio(r3,0.90,0.60), c4=colorByRatio(r4,1.00,0.60);
 
   const target_r0=0.60*raceG, target_r1=0.40*raceD, target_r2=0.70*(predT||0), target_r3=0.90*raceD, target_r4=1.00*raceG;
@@ -112,17 +120,30 @@ function renderRisk(_EP_race, predT){
     `● 近四週平均爬升／比賽爬升：${pct(r4)}（${c4.label}）${diffText('gain',wkG,target_r4)}`
   ].join('<br>');
 
+  // 原本的訓練量乘數（保留）
   const mult=(c,t)=> c==='risk-low'?1 : c==='risk-mid'?(t==='r2'?0.95:0.97) : (t==='r2'?0.88:0.90);
   const f0=mult(c0.cls,'r0'), f1=mult(c1.cls,'r1'), f2=mult(c2.cls,'r2'), f3=mult(c3.cls,'r3'), f4=mult(c4.cls,'r4');
   const factor=f0*f1*f2*f3*f4;
 
+  // 計算「未達標數」：只算有資料且低於建議門檻的
+  const meets = [
+    isFinite(r0) ? r0>=0.60 : null,
+    isFinite(r1) ? r1>=0.40 : null,
+    isFinite(r2) ? r2>=0.70 : null,
+    isFinite(r3) ? r3>=0.90 : null,
+    isFinite(r4) ? r4>=1.00 : null,
+  ];
+  const deficits = meets.filter(x => x===false).length;
+  const meetsAll  = deficits===0;
+
+  // 綜合等級
   let level='中';
   const reds=[c0,c1,c2,c3,c4].filter(x=>x.cls==='risk-high').length;
   const yellows=[c0,c1,c2,c3,c4].filter(x=>x.cls==='risk-mid').length;
   if(reds>=2 || (reds===1 && yellows>=2)) level='高';
   else if(reds===0 && yellows<=2) level='低';
 
-  return {factor, level};
+  return {factor, level, deficits, meetsAll};
 }
 
 // 反推：為守關門所需訓練 EPH
@@ -261,11 +282,18 @@ function predictFinish(){
   const bufferPct=parseNum('bufferPct')||0;
   const T_ref=Math.max(2400, LAST.T||0); // 至少 40 分鐘
 
-  // 一般
+  // 一般（先算 raw stamina，再依缺口數縮放；硬性達標直接關閉）
   const EP_race_basic=ep(D,G);
   let t_pred_basic = isFinite(EPHb)&&EPHb>0 ? (EP_race_basic/EPHb)*3600 : NaN;
-  const Fb = isFinite(t_pred_basic)&&isFinite(T_ref)&&T_ref>0 ? staminaFactor(t_pred_basic/T_ref) : 1;
+  const hardOverride = isFinite(LAST.D)&&isFinite(LAST.G) && isFinite(D)&&isFinite(G) && LAST.D>=D && LAST.G>=G;
+  const Fb_raw = isFinite(t_pred_basic)&&isFinite(T_ref)&&T_ref>0 ? staminaFactor(t_pred_basic/T_ref) : 1;
+
+  // 訓練量風險（也回傳未達項目數）
   const risk=renderRisk(EP_race_basic,t_pred_basic);
+
+  // 條件式套用 Stamina：未達越多，套用越強；0 項或硬性達標 → 不套用
+  const Fb = (hardOverride || risk.deficits===0) ? 1 : Math.pow(Fb_raw, risk.deficits/5);
+
   const t_pred_basic_adj = isFinite(t_pred_basic)? (EP_race_basic/(EPHb*Fb*risk.factor))*3600*(1+bufferPct/100) : NaN;
 
   $('predBasicTime').textContent=secondsToHMS(t_pred_basic_adj);
@@ -286,10 +314,11 @@ function predictFinish(){
   $('predBasicNeed').innerHTML = needList.map(x=>`<li>${x}</li>`).join('') || '';
   $('predBasicSlowest').textContent = isFinite(t_pred_basic_adj)? `以目前 EPH 可守的最慢關門：${secondsToHMS(t_pred_basic_adj)}` : '—';
 
-  // 進階
+  // 進階（同樣的條件式套用）
   const EP_race_cal=ep_cal(D,G,Des,r_use);
   let t_pred_cal = isFinite(EPHc)&&EPHc>0 ? (EP_race_cal/EPHc)*3600 : NaN;
-  const Fc = isFinite(t_pred_cal)&&isFinite(T_ref)&&T_ref>0 ? staminaFactor(t_pred_cal/T_ref) : 1;
+  const Fc_raw = isFinite(t_pred_cal)&&isFinite(T_ref)&&T_ref>0 ? staminaFactor(t_pred_cal/T_ref) : 1;
+  const Fc = (hardOverride || risk.deficits===0) ? 1 : Math.pow(Fc_raw, risk.deficits/5);
   const t_pred_cal_adj = isFinite(t_pred_cal)? (EP_race_cal/(EPHc*Fc*risk.factor))*3600*(1+bufferPct/100) : NaN;
 
   $('predCalTime').textContent=secondsToHMS(t_pred_cal_adj);
@@ -310,12 +339,12 @@ function predictFinish(){
   $('predCalNeed').innerHTML = needList2.map(x=>`<li>${x}</li>`).join('') || '';
   $('predCalSlowest').textContent = isFinite(t_pred_cal_adj)? `以目前 EPH 可守的最慢關門：${secondsToHMS(t_pred_cal_adj)}` : '—';
 
-  // 摘要列
+  // 摘要列（含 建議最低門檻）
   PRED={
     eph: isFinite(LAST.EPH_cal)?LAST.EPH_cal:LAST.EPH_basic,
     mode: isFinite(LAST.EPH_cal)?'進階':'一般',
-    basicTime: secondsToHMS(t_pred_basic_adj), basicVerd,
-    calTime: secondsToHMS(t_pred_cal_adj), calVerd,
+    basicTime: secondsToHMS(t_pred_basic_adj), basicVerd, basicSec: isFinite(t_pred_basic_adj)?t_pred_basic_adj:NaN,
+    calTime: secondsToHMS(t_pred_cal_adj),     calVerd,   calSec:    isFinite(t_pred_cal_adj)?t_pred_cal_adj:NaN,
     riskLevel: risk.level
   };
   updateSummaryBar();
@@ -337,6 +366,18 @@ function updateSummaryBar(){
   const risk=$('summaryRisk'); risk.className='badge';
   risk.classList.add( s.riskLevel==='低'?'risk-low': s.riskLevel==='中'?'risk-mid':'risk-high' );
   risk.textContent=`訓練量風險：${s.riskLevel}`;
+
+  // 建議最低門檻（單次）：距離/爬升/時間
+  const raceD=parseNum('raceD'), raceG=parseNum('raceG');
+  const distMin = isFinite(raceD) ? 0.40*raceD : NaN;
+  const gainMin = isFinite(raceG) ? 0.60*raceG : NaN;
+  const predSec = SUMMARY_VIEW==='novice' ? s.basicSec : s.calSec;
+  const timeMin = isFinite(predSec) ? 0.70*predSec : NaN;
+
+  const line = (isFinite(distMin)||isFinite(gainMin)||isFinite(timeMin))
+    ? `最低門檻（單次）：距離 ≥ ${isFinite(distMin)?fmt(distMin,2):'—'} km｜爬升 ≥ ${isFinite(gainMin)?Math.round(gainMin):'—'} m｜時間 ≥ ${isFinite(timeMin)?secondsToHMS(timeMin):'—'}`
+    : '最低門檻（單次）：—';
+  $('summaryMinReq').textContent = line;
 }
 
 // ========= 分享圖 =========
@@ -448,12 +489,9 @@ document.addEventListener('DOMContentLoaded', ()=>{
 
   // 訓練量風險晶片：展開對應檢核列表
   $('summaryRisk').addEventListener('click', ()=>{
-    const det = document.querySelector('section.card details[open], section.card details'); // 找到進階預估區的 details
-    const riskDetails = document.querySelector('section.card h3 + .numbers + ul + .hint, section.card details summary') // 防守式選擇
-    const container = document.querySelector('section.card h3:nth-child(1)');
-    const d = document.querySelector('section.card details summary').parentElement;
-    d.open = true;
-    d.scrollIntoView({behavior:'smooth', block:'center'});
+    const d = document.querySelector('section.card details[open], section.card details');
+    const target = document.querySelector('section.card details summary');
+    if(target && d){ d.open = true; d.scrollIntoView({behavior:'smooth', block:'center'}); }
   });
 
   // 風險 & 賽事欄位變動即時刷新摘要
