@@ -105,11 +105,11 @@ function renderRisk(_EP_race, predT){
   };
 
   list.innerHTML=[
-    `● 單次最長爬升/比賽爬升：${pct(r0)}（${c0.label}）${diffText('gain',maxG,target_r0)}`,
-    `● 單次最長距離/比賽距離：${pct(r1)}（${c1.label}）${diffText('km',maxD,target_r1)}`,
-    `● 單次最長時間/預估完賽：${pct(r2)}（${c2.label}）${diffText('time',maxT,target_r2)}`,
-    `● 近四週平均距離/比賽距離：${pct(r3)}（${c3.label}）${diffText('km',wkD,target_r3)}`,
-    `● 近四週平均爬升/比賽爬升：${pct(r4)}（${c4.label}）${diffText('gain',wkG,target_r4)}`
+    `● 單次最長爬升／比賽爬升：${pct(r0)}（${c0.label}）${diffText('gain',maxG,target_r0)}`,
+    `● 單次最長距離／比賽距離：${pct(r1)}（${c1.label}）${diffText('km',maxD,target_r1)}`,
+    `● 單次最長時間／預估完賽：${pct(r2)}（${c2.label}）${diffText('time',maxT,target_r2)}`,
+    `● 近四週平均距離／比賽距離：${pct(r3)}（${c3.label}）${diffText('km',wkD,target_r3)}`,
+    `● 近四週平均爬升／比賽爬升：${pct(r4)}（${c4.label}）${diffText('gain',wkG,target_r4)}`
   ].join('<br>');
 
   const mult=(c,t)=> c==='risk-low'?1 : c==='risk-mid'?(t==='r2'?0.95:0.97) : (t==='r2'?0.88:0.90);
@@ -147,7 +147,7 @@ function compute(){
   const rlossPreset=parseNum('rloss');
   const Pflat=paceToSecPerKm($('pflat').value.trim()), pDownPct=parseNum('pdown'), Pdown=paceToSecPerKm($('pdownpace').value.trim()), gDown=parseNum('gdown');
 
-  // 新手
+  // 一般
   const EPb=ep(D,G), EPHb=eph(EPb,T), EPaceb=epace(EPb,T);
   const tExplain=explainHoursFromSeconds(T);
   $('basicEP').textContent=fmt(EPb,2);
@@ -159,37 +159,43 @@ EP = D + G/100 = ${fmt(D,2)} + ${fmt(G,0)}/100 = ${fmt(EPb,2)} ekm
 EPH = EP / (T/3600) = ${fmt(EPb,2)} / (${fmt(T/3600,3)} h) = ${fmt(EPHb,2)} ekm/h
 配速 = ${secondsToHMS(T)} ÷ ${fmt(EPb,2)} = ${EPaceb} 分/ekm`;
 
-  // 校準
+  // 進階
   let cal={rloss:rlossPreset,method:'preset'};
   if(isFinite(Pflat)&&isFinite(pDownPct)&&isFinite(Des)&&isFinite(T)&&T>0&&Des>0&&pDownPct>0){
     cal = calibrate_r_loss(T, Des, pDownPct, Pflat, Pdown, gDown);
   }
-  $('advPreset').textContent = `（Rloss：${cal.method}）`;
+  $('advPreset').textContent = `（Rloss：${cal.method==='preset'?'preset':'自訂'}）`;
 
   const r_use=isFinite(cal.rloss)?cal.rloss:rlossPreset;
   const EPc=ep_cal(D,G,Des,r_use), EPHc=eph(EPc,T), EPacec=epace(EPc,T);
   $('calEP').textContent=fmt(EPc,2);
   $('calEPH').textContent=fmt(EPHc,2);
   $('calEPace').textContent=EPacec;
-  $('calMeta').innerHTML=`R<sub>loss</sub>（使用中）＝<strong>${fmt(r_use,0)}</strong>（${cal.method}）`;
+  $('calMeta').innerHTML=`R<sub>loss</sub>（使用中）＝<strong>${fmt(r_use,0)}</strong>（${cal.method==='preset'?'preset':'自訂'}）`;
   $('calSteps').textContent=
 `${tExplain.text}
 EP_cal = D + G/100 + Des/R_loss = ${fmt(D,2)} + ${fmt(G,0)}/100 + ${isFinite(Des)?fmt(Des,0):0}/${fmt(r_use,0)} = ${fmt(EPc,2)} ekm
 EPH_cal = EP_cal / (T/3600) = ${fmt(EPc,2)} / (${fmt(T/3600,3)} h) = ${fmt(EPHc,2)} ekm/h
 配速 = ${secondsToHMS(T)} ÷ ${fmt(EPc,2)} = ${EPacec} 分/ekm`;
 
-  // 差異徽章
+  // 差異徽章 + 一句話
   const diff=(isFinite(EPHb)&&isFinite(EPHc))? ((EPHc-EPHb)/EPHb*100) : NaN;
   const badge=$('diffBadge');
   if(isFinite(diff)){
     badge.textContent = diff>0?`+${fmt(diff,1)}%` : diff<0?`${fmt(diff,1)}%` : '+0.0%';
     badge.className='badge '+(diff>0?'delta-pos':diff<0?'delta-neg':'delta-zero');
-  }else{ badge.textContent='+0.0%'; badge.className='badge delta-zero'; }
+    $('diffLine').textContent = diff===0
+      ? '兩版幾乎一致：賽道下降影響極小。'
+      : `進階考慮下降成本 → EPH 估計${diff>0?'提升':'下降'} ${fmt(Math.abs(diff),1)}%（相較一般版）。`;
+  }else{
+    badge.textContent='+0.0%'; badge.className='badge delta-zero';
+    $('diffLine').textContent='—';
+  }
 
-  $('copyBasicVals').dataset.copy = `新手版 EP=${fmt(EPb,2)} ekm，EPH=${fmt(EPHb,2)} ekm/h，配速=${EPaceb}`;
-  $('copyCalVals').dataset.copy   = `校準版 EP=${fmt(EPc,2)} ekm，EPH=${fmt(EPHc,2)} ekm/h，配速=${EPacec}，Rloss=${fmt(r_use,0)}`;
+  $('copyBasicVals').dataset.copy = `一般 EP=${fmt(EPb,2)} ekm，EPH=${fmt(EPHb,2)} ekm/h，配速=${EPaceb}`;
+  $('copyCalVals').dataset.copy   = `進階 EP=${fmt(EPc,2)} ekm，EPH=${fmt(EPHc,2)} ekm/h，配速=${EPacec}，Rloss=${fmt(r_use,0)}`;
 
-  LAST={D,G,Des,EPH_basic:EPHb,EPH_cal:EPHc,T, r_use, mode:isFinite(EPHc)?'校準版':'新手版'};
+  LAST={D,G,Des,EPH_basic:EPHb,EPH_cal:EPHc,T, r_use, mode:isFinite(EPHc)?'進階':'一般'};
   pushHistory({ts:Date.now(),type:'EPH 計算',summary:`D=${fmt(D,2)}km, G=${fmt(G,0)}m, Des=${isFinite(Des)?fmt(Des,0):'-'}m, T=${secondsToHMS(T)}, EPH=${fmt(EPHb,2)}/${fmt(EPHc,2)} (Rloss=${fmt(r_use,0)})`});
 
   predictFinish();
@@ -205,7 +211,14 @@ function plan(){
   const rlossPreset=parseNum('rloss');
   const Pflat=paceToSecPerKm($('pflat').value.trim()), pDownPct=parseNum('pdown'), Pdown=paceToSecPerKm($('pdownpace').value.trim()), gDown=parseNum('gdown');
 
-  // 新手
+  // 進階 preset 標籤
+  let cal={rloss:rlossPreset,method:'preset'};
+  if(isFinite(Pflat)&&isFinite(pDownPct)&&isFinite(Des)&&isFinite(cutoff)&&cutoff>0&&Des>0&&pDownPct>0){
+    cal = calibrate_r_loss(cutoff, Des, pDownPct, Pflat, Pdown, gDown);
+  }
+  $('planCalLabel').textContent = `使用中：${cal.method==='preset'?'preset':'自訂'}`;
+
+  // 一般
   const EPH_race_basic=target_eph_from_cutoff(D,G,0,cutoff,Infinity);
   const t_train_basic=train_time_from_target_eph(d,g,0,EPH_race_basic,Infinity)*(1+bufferPct/100);
   $('raceBasicEPH').textContent=fmt(EPH_race_basic,2);
@@ -217,11 +230,7 @@ EPH_race = ${fmt(D+G/100,2)} ÷ ${fmt(cutoff/3600,3)} = ${fmt(EPH_race_basic,2)}
 EP_train = d + g/100 = ${fmt(d,2)} + ${fmt(g,0)}/100 = ${fmt(d+g/100,2)} ekm
 所需時間 = EP_train / EPH_race × 3600 = ${secondsToHMS(t_train_basic)}`;
 
-  // 校準
-  let cal={rloss:rlossPreset,method:'preset'};
-  if(isFinite(Pflat)&&isFinite(pDownPct)&&isFinite(Des)&&isFinite(cutoff)&&cutoff>0&&Des>0&&pDownPct>0){
-    cal = calibrate_r_loss(cutoff, Des, pDownPct, Pflat, Pdown, gDown);
-  }
+  // 進階
   const r_use=isFinite(cal.rloss)?cal.rloss:rlossPreset;
   const EPH_race_cal=target_eph_from_cutoff(D,G,Des,cutoff,r_use);
   const t_train_cal=train_time_from_target_eph(d,g,des,EPH_race_cal,r_use)*(1+bufferPct/100);
@@ -233,6 +242,10 @@ EP_race_cal = D + G/100 + Des/R_loss = ${fmt(D,2)} + ${fmt(G,0)}/100 + ${isFinit
 EPH_race_cal = ${fmt(D + G/100 + (isFinite(Des)?Des/r_use:0),2)} ÷ ${fmt(cutoff/3600,3)} = ${fmt(EPH_race_cal,2)} ekm/h
 EP_train_cal = d + g/100 + des/R_loss = ${fmt(d + g/100 + (isFinite(des)?des/r_use:0),2)} ekm
 所需時間 = EP_train_cal / EPH_race_cal × 3600 = ${secondsToHMS(t_train_cal)}`;
+
+  // 空狀態顯示
+  const showEmpty = !(isFinite(EPH_race_basic)&&isFinite(t_train_basic)) && !(isFinite(EPH_race_cal)&&isFinite(t_train_cal));
+  $('planEmpty').style.display = showEmpty ? 'block' : 'none';
 
   pushHistory({ts:Date.now(),type:'賽事→訓練',summary:`Race ${fmt(D,2)}km +${fmt(G,0)}m T=${secondsToHMS(cutoff)} → Train ${fmt(d,2)}km +${fmt(g,0)}m : ${secondsToHMS(t_train_basic)} / ${secondsToHMS(t_train_cal)} (Rloss=${fmt(r_use,0)})`});
 
@@ -248,7 +261,7 @@ function predictFinish(){
   const bufferPct=parseNum('bufferPct')||0;
   const T_ref=Math.max(2400, LAST.T||0); // 至少 40 分鐘
 
-  // 新手
+  // 一般
   const EP_race_basic=ep(D,G);
   let t_pred_basic = isFinite(EPHb)&&EPHb>0 ? (EP_race_basic/EPHb)*3600 : NaN;
   const Fb = isFinite(t_pred_basic)&&isFinite(T_ref)&&T_ref>0 ? staminaFactor(t_pred_basic/T_ref) : 1;
@@ -273,7 +286,7 @@ function predictFinish(){
   $('predBasicNeed').innerHTML = needList.map(x=>`<li>${x}</li>`).join('') || '';
   $('predBasicSlowest').textContent = isFinite(t_pred_basic_adj)? `以目前 EPH 可守的最慢關門：${secondsToHMS(t_pred_basic_adj)}` : '—';
 
-  // 校準
+  // 進階
   const EP_race_cal=ep_cal(D,G,Des,r_use);
   let t_pred_cal = isFinite(EPHc)&&EPHc>0 ? (EP_race_cal/EPHc)*3600 : NaN;
   const Fc = isFinite(t_pred_cal)&&isFinite(T_ref)&&T_ref>0 ? staminaFactor(t_pred_cal/T_ref) : 1;
@@ -300,7 +313,7 @@ function predictFinish(){
   // 摘要列
   PRED={
     eph: isFinite(LAST.EPH_cal)?LAST.EPH_cal:LAST.EPH_basic,
-    mode: isFinite(LAST.EPH_cal)?'校準版':'新手版',
+    mode: isFinite(LAST.EPH_cal)?'進階':'一般',
     basicTime: secondsToHMS(t_pred_basic_adj), basicVerd,
     calTime: secondsToHMS(t_pred_cal_adj), calVerd,
     riskLevel: risk.level
@@ -323,7 +336,7 @@ function updateSummaryBar(){
 
   const risk=$('summaryRisk'); risk.className='badge';
   risk.classList.add( s.riskLevel==='低'?'risk-low': s.riskLevel==='中'?'risk-mid':'risk-high' );
-  risk.textContent=`風險：${s.riskLevel}`;
+  risk.textContent=`訓練量風險：${s.riskLevel}`;
 }
 
 // ========= 分享圖 =========
@@ -343,14 +356,14 @@ async function makeSharePNG(){
   ctx.fillText(`爬升 +${Math.round(s.G||0)} m${desTxt}`, x, 68+line*2);
   ctx.fillText(`時間 ${secondsToHMS(s.T||0)}`, x, 68+line*3);
   ctx.font='800 84px system-ui,"Noto Sans","PingFang TC","Microsoft JhengHei",sans-serif';
-  ctx.fillText(`EPH（校準） ${fmt(chosen,2)} ekm/h`, x, 420-48);
+  ctx.fillText(`EPH（進階） ${fmt(chosen,2)} ekm/h`, x, 420-48);
 
   const blob=await new Promise(res=>canvas.toBlob(res,'image/png'));
   const url=URL.createObjectURL(blob);
   const a=$('downloadLink'); a.href=url; a.download=`eph_${Date.now()}.png`; a.click();
 }
 
-// ========= 時間輸入（修正版）：輸入中只插冒號；失焦才補零與驗證 =========
+// ========= 時間輸入（輸入中只插冒號；失焦才補零與驗證） =========
 function digitsToHMS(digits) {
   const s = digits.padStart(6, '0'); // 6 位補零：hhmmss
   return `${s.slice(0,2)}:${s.slice(2,4)}:${s.slice(4,6)}`;
@@ -360,7 +373,7 @@ function maskTime(el) {
   if (d.length === 0) { el.value = ''; return; }
   if (d.length <= 2) { el.value = d; return; }                                // hh
   if (d.length <= 4) { el.value = `${d.slice(0,2)}:${d.slice(2)}`; return; }  // hh:mm
-  el.value = `${d.slice(0,2)}:${d.slice(2,4)}:${d.slice(4)}`;                 // hh:mm:ss（輸入中）
+  el.value = `${d.slice(0,2)}:${d.slice(2,4)}:${d.slice(4)}`;                 // hh:mm:ss
 }
 function validateTime(el, errId) {
   const d = el.value.replace(/[^\d]/g, '');
@@ -368,26 +381,39 @@ function validateTime(el, errId) {
   if (d.length === 0) { err.textContent = ''; el.value = ''; return; }
   const hms = digitsToHMS(d);
   const s = toSeconds(hms);
-  if (!isFinite(s)) {
-    err.textContent = '格式需為 hh:mm:ss';
-  } else {
-    err.textContent = '';
-    el.value = secondsToHMS(s); // 正規化
-  }
+  if (!isFinite(s)) { err.textContent = '格式需為 hh:mm:ss'; }
+  else { err.textContent = ''; el.value = secondsToHMS(s); }
 }
+
+// ========= pDown / gDown 防呆 =========
+function clampNumber(val, lo, hi){ if(!isFinite(val)) return NaN; return Math.min(hi, Math.max(lo, val)); }
+function validatePDown(){ const el=$('pdown'); const v=Number(el.value); const err=$('pdownErr');
+  if(el.value===''){ err.textContent=''; return; }
+  if(v<0||v>100){ err.textContent='0–100 % 範圍內'; return; }
+  if(v<10||v>60){ err.textContent='建議 10–60 %'; } else err.textContent='';
+}
+function blurPDown(){ const el=$('pdown'); if(el.value==='') return; const v=Number(el.value); if(!isFinite(v)) return; if(v<0||v>100) el.value=clampNumber(v,0,100); }
+function validateGDown(){ const el=$('gdown'); const v=Number(el.value); const err=$('gdownErr');
+  if(el.value===''){ err.textContent=''; return; }
+  if(v<0||v>60){ err.textContent='0–60 % 範圍內'; return; }
+  if(v<3||v>20){ err.textContent='建議 3–20 %'; } else err.textContent='';
+}
+function blurGDown(){ const el=$('gdown'); if(el.value==='') return; const v=Number(el.value); if(!isFinite(v)) return; if(v<0||v>60) el.value=clampNumber(v,0,60); }
 
 // ========= 綁定 =========
 document.addEventListener('DOMContentLoaded', ()=>{
   $('calcBtn').addEventListener('click', compute);
   $('resetBtn').addEventListener('click', ()=>{
     ['dist','gain','descent','time','pdown','pdownpace','gdown','rloss','pflat'].forEach(id=>$(id).value='');
-    $('timeErr').textContent=''; compute();
+    $('timeErr').textContent=''; $('pdownErr').textContent=''; $('gdownErr').textContent='';
+    compute();
   });
 
   $('planBtn').addEventListener('click', ()=>{ plan(); predictFinish(); });
   $('planResetBtn').addEventListener('click', ()=>{
     ['raceD','raceG','raceDes','raceCutoff','trainD','trainG','trainDes','bufferPct'].forEach(id=>$(id).value='');
-    $('raceCutoffErr').textContent=''; plan(); predictFinish();
+    $('raceCutoffErr').textContent=''; $('planEmpty').style.display='block';
+    plan(); predictFinish();
   });
 
   $('clearHistoryBtn').addEventListener('click', ()=>{ localStorage.removeItem(KEY); renderHistory(); });
@@ -402,15 +428,33 @@ document.addEventListener('DOMContentLoaded', ()=>{
   $('copyBasicVals').addEventListener('click', e=>copy(e.currentTarget.dataset.copy||''));
   $('copyCalVals').addEventListener('click', e=>copy(e.currentTarget.dataset.copy||''));
 
-  // Segmented 切換（摘要）
+  // Segmented 切換（一般｜進階）＋鍵盤操作
   const setSeg=(view)=>{
     SUMMARY_VIEW=view;
     $('segNovice').classList.toggle('active', view==='novice');
     $('segCal').classList.toggle('active', view==='cal');
+    $('segNovice').setAttribute('aria-checked', view==='novice'?'true':'false');
+    $('segCal').setAttribute('aria-checked', view==='cal'?'true':'false');
     updateSummaryBar();
   };
   $('segNovice').addEventListener('click', ()=>setSeg('novice'));
   $('segCal').addEventListener('click', ()=>setSeg('cal'));
+  document.querySelector('.seg').addEventListener('keydown', (e)=>{
+    if(e.key==='ArrowLeft'||e.key==='ArrowRight'){
+      e.preventDefault();
+      setSeg(SUMMARY_VIEW==='novice'?'cal':'novice');
+    }
+  });
+
+  // 訓練量風險晶片：展開對應檢核列表
+  $('summaryRisk').addEventListener('click', ()=>{
+    const det = document.querySelector('section.card details[open], section.card details'); // 找到進階預估區的 details
+    const riskDetails = document.querySelector('section.card h3 + .numbers + ul + .hint, section.card details summary') // 防守式選擇
+    const container = document.querySelector('section.card h3:nth-child(1)');
+    const d = document.querySelector('section.card details summary').parentElement;
+    d.open = true;
+    d.scrollIntoView({behavior:'smooth', block:'center'});
+  });
 
   // 風險 & 賽事欄位變動即時刷新摘要
   ['maxLongD','maxLongG','maxLongTime','wkAvgD','wkAvgG','raceD','raceG','raceDes','raceCutoff','bufferPct']
@@ -422,6 +466,10 @@ document.addEventListener('DOMContentLoaded', ()=>{
     el.addEventListener('input', ()=>maskTime(el));
     el.addEventListener('blur',  ()=>validateTime(el,err));
   });
+
+  // pdown/gdown 防呆
+  if($('pdown')){ $('pdown').addEventListener('input', validatePDown); $('pdown').addEventListener('blur', blurPDown); }
+  if($('gdown')){ $('gdown').addEventListener('input', validateGDown); $('gdown').addEventListener('blur', blurGDown); }
 
   compute(); plan(); predictFinish(); renderHistory();
 
