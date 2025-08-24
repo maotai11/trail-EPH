@@ -2,249 +2,248 @@
 <html lang="zh-Hant">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Trail EPH 計算器 (MVP)</title>
-  <meta name="theme-color" content="#0f172a"/>
-  <link rel="manifest" href="manifest.webmanifest">
-  <link rel="icon" href="icon.png">
-  <link rel="apple-touch-icon" href="icon.png">
+  <meta name="theme-color" content="#0f172a" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="icon" href="icon.png" />
+  <link rel="apple-touch-icon" href="icon.png" />
   <link rel="stylesheet" href="styles.css" />
   <style>
-    /* --- 版面 token / 補強 --- */
-    .tabnum{font-feature-settings:"tnum";font-variant-numeric:tabular-nums}
-    .mono{font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace}
+    :root{--bg:#0b1220;--card:#0f172a;--border:#1e293b;--muted:#94a3b8}
     .container{max-width:72rem;margin:0 auto;padding:0 1rem}
     .grid{display:grid;gap:16px}
     .grid-2{display:grid;gap:12px;grid-template-columns:1fr}
     .grid-3{display:grid;gap:12px;grid-template-columns:1fr}
     @media(min-width:980px){.grid-2{grid-template-columns:1fr 1fr}.grid-3{grid-template-columns:repeat(3,1fr)}}
     .stack{display:grid;gap:16px}
-    .card{background:#0f172a;border:1px solid #1e293b;border-radius:16px;padding:16px}
-    .section-tip{color:var(--muted);font-size:13px;margin:-2px 0 10px}
+    .card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:16px}
+    .tabnum{font-feature-settings:"tnum";font-variant-numeric:tabular-nums}
+    .mono{font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace}
     .hint{color:var(--muted);font-size:12px}
     .err{color:#ef4444;font-size:12px;margin-top:6px;min-height:1.1em}
     .actions{display:flex;gap:10px;margin-top:10px}
-    .ghost{background:transparent;border:1px solid #334155}
+    .ghost{background:transparent;border:1px solid #334155;border-radius:10px;padding:8px 12px}
+    .btn{border:1px solid #334155;background:#0b1220;border-radius:10px;padding:8px 12px}
+    .btn:hover{background:#0f172a}
+    .btn-primary{border-color:#38bdf8;background:#0ea5e91a;color:#7dd3fc}
+    .btn-primary:hover{background:#0ea5e933}
+    .badge{display:inline-flex;align-items:center;gap:6px;border:1px solid #2b3648;border-radius:999px;padding:2px 10px;font-size:12px}
+    .risk-low{color:#10b981;border-color:#10b98133;background:#10b9811a}
+    .risk-mid{color:#f59e0b;border-color:#f59e0b33;background:#f59e0b1a}
+    .risk-high{color:#ef4444;border-color:#ef444433;background:#ef44441a}
+    .delta-badge{margin-left:8px}
+    .delta-pos{color:#10b981;border-color:#10b98155;background:#10b9811a}
+    .delta-neg{color:#f43f5e;border-color:#f43f5e55;background:#f43f5e1a}
+    .delta-zero{color:#cbd5e1;border-color:#475569;background:#334155}
+    .numbers{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:6px}
+    .numbers>div{border:1px solid #233044;background:#0d1526;border-radius:12px;padding:10px}
+    .numbers span{color:var(--muted);font-size:12px}
+    .numbers strong{font-size:24px}
+    .steps summary{cursor:pointer}
+    .copy-row{display:flex;gap:8px;margin-top:6px}
 
-    /* Summary Bar（三分區） */
-    .summary-bar{position:sticky;top:0;z-index:40;background:linear-gradient(180deg,#0b1220 0%,#0f172a 100%);border-bottom:1px solid #1e293b}
-    .summary-grid{display:grid;gap:12px;padding:12px 10px;grid-template-columns:1fr}
-    @media(min-width:980px){.summary-grid{grid-template-columns:1fr 1.2fr auto}}
+    /* ===== 摘要列（Segmented + 單一時間） ===== */
+    .summary-bar{position:sticky;top:0;z-index:40;background:linear-gradient(180deg,#0b1220 0%,#0f172a 100%);border-bottom:1px solid var(--border)}
+    .summary{display:grid;gap:12px;padding:12px 10px;grid-template-columns:1fr}
+    @media(min-width:980px){.summary{grid-template-columns:1fr 1.2fr auto}}
     .sum-box{border:1px solid #233044;background:#0b1220;border-radius:14px;padding:10px 12px;display:flex;align-items:center;gap:14px}
     .sum-label{color:var(--muted);font-size:12px}
     .sum-value{font-weight:800;font-size:28px}
     .sum-unit{color:#94a3b8;font-size:12px;margin-left:6px}
-    .sum-mid{display:flex;gap:14px;flex-wrap:wrap}
-    .sum-mid .kv{border:1px solid #233044;background:#0d1526;border-radius:12px;padding:8px 10px;min-width:180px}
+    .seg{display:inline-flex;border:1px solid var(--border);border-radius:12px;padding:2px;background:#0f172a}
+    .seg button{padding:6px 10px;border-radius:10px;border:0;background:transparent;color:#cbd5e1}
+    .seg button.active{background:#0b1220;color:#fff}
+    .sum-mid{display:flex;gap:12px;align-items:center}
     .sum-cta{display:flex;gap:8px;align-items:center;justify-content:flex-end}
-
-    .badge{display:inline-flex;align-items:center;gap:6px;border:1px solid #2b3648;border-radius:999px;padding:2px 10px;font-size:12px}
-    .delta-badge{margin-left:8px}
-    .risk-chip{border:1px solid #334155;background:#0b1220}
-    .risk-low{color:#10b981;border-color:#10b98133;background:#10b9811a}
-    .risk-mid{color:#f59e0b;border-color:#f59e0b33;background:#f59e0b1a}
-    .risk-high{color:#ef4444;border-color:#ef444433;background:#ef44441a}
-
-    .btn-sm{padding:6px 10px;border-radius:10px;border:1px solid #334155;background:#0b1220}
-    .btn-sm:hover{background:#0f172a}
-    .btn-primary{border-color:#38bdf8;background:#0ea5e91a;color:#7dd3fc}
-    .btn-primary:hover{background:#0ea5e933}
-
-    /* 「結果對比」中的數字對齊與等高 */
-    .cards{display:grid;gap:12px;grid-template-columns:1fr}
-    @media(min-width:980px){.cards{grid-template-columns:1fr 1fr}}
-    .result-card{border:1px solid #1f2a3a;background:#0b1220;border-radius:16px;padding:12px;display:flex;flex-direction:column}
-    .result-card .numbers{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:6px}
-    .result-card .numbers div{border:1px solid #233044;background:#0d1526;border-radius:12px;padding:10px}
-    .result-card span{color:#94a3b8;font-size:12px}
-    .result-card strong{font-size:24px}
-    .steps summary{cursor:pointer}
-    .copy-row{display:flex;gap:8px;margin-top:6px}
-
-    /* label 兩行（中文／英數） */
-    .label-title{line-height:1.15}
-    .label-title .mono{color:var(--muted);font-size:12px}
-
-    /* tooltip（靠 title 簡化） */
-    [data-tip]{position:relative}
+    .summary-time{min-width:180px;border:1px solid #233044;background:#0d1526;border-radius:12px;padding:8px 10px}
+    .summary-time .sum-value{font-size:28px}
   </style>
 </head>
 <body>
   <header class="container">
     <h1>Trail EPH 計算器（MVP）</h1>
-    <p class="subtitle">新手友善 EP/EPH × 進階校準（R<sub>loss</sub>）｜訓練與賽事換算</p>
+    <p class="hint">新手友善 EP/EPH × 進階校準（R<sub>loss</sub>）｜訓練與賽事換算</p>
   </header>
 
-  <!-- ======= 摘要列（P0：三分區＋彩色風險晶片） ======= -->
+  <!-- ===== 頂部摘要列（單一時間 + Segmented） ===== -->
   <div class="summary-bar" aria-live="polite">
-    <div class="container summary-grid">
-      <!-- 左：我的訓練 EPH（校準優先） -->
+    <div class="container summary">
+      <!-- 左：我的訓練 EPH（顯示目前模式） -->
       <div class="sum-box">
         <div>
           <div class="sum-label">我的訓練 EPH <span id="summaryMode" class="sum-unit"></span>
-            <span class="sum-unit" title="EPH：每小時等效公里（ekm/h）。EP：距離 + 爬升/100 (+ 下降/Rloss)。">ⓘ</span>
+            <span class="sum-unit" title="EP：距離 + 爬升/100 (+ 下降/Rloss)；EPH：每小時等效公里（ekm/h）。">ⓘ</span>
           </div>
           <div class="tabnum sum-value" id="summaryEPH">—</div>
         </div>
       </div>
 
-      <!-- 中：預估完賽（新手｜校準） -->
+      <!-- 中：預估完賽 + Segmented 切換 -->
       <div class="sum-box" style="justify-content:space-between">
         <div class="sum-mid">
-          <div class="kv">
-            <div class="sum-label">預估完賽（新手）</div>
-            <div class="tabnum sum-value" id="summaryBasicTime">—</div>
-            <div class="badge" id="summaryBasicVerdict">—</div>
+          <div class="seg" role="tablist" aria-label="切換預估模式">
+            <button id="segNovice" class="active" role="tab" aria-selected="true">新手版</button>
+            <button id="segCal" role="tab" aria-selected="false">校準版</button>
           </div>
-          <div class="kv">
-            <div class="sum-label">預估完賽（校準）</div>
-            <div class="tabnum sum-value" id="summaryCalTime">—</div>
-            <div class="badge" id="summaryCalVerdict">—</div>
+          <div class="summary-time">
+            <div class="sum-label">預估完賽時間</div>
+            <div class="tabnum sum-value" id="summaryTime">—</div>
+            <div class="badge" id="summaryVerdict">—</div>
           </div>
         </div>
       </div>
 
-      <!-- 右：風險＋主要 CTA -->
+      <!-- 右：風險晶片 + CTA -->
       <div class="sum-box sum-cta">
-        <span id="summaryRisk" class="badge risk-chip" title="風險分級：綜合『單次最長 距離/爬升/時間』與『近四週平均 距離/爬升』的覆蓋率。">風險：—</span>
-        <button id="summaryRecalc" class="btn-sm btn-primary" aria-label="重新計算">重新計算</button>
-        <button id="summaryShare" class="btn-sm" aria-label="匯出分享圖">分享</button>
+        <span id="summaryRisk" class="badge" title="分級規則：綜合單次最長距離/爬升/時間與近四週平均距離/爬升的覆蓋率。">風險：—</span>
+        <button id="summaryRecalc" class="btn btn-primary" accesskey="r" aria-label="重新計算（Alt+R）">重新計算</button>
+        <button id="summaryShare" class="btn" aria-label="匯出分享圖">分享</button>
       </div>
     </div>
   </div>
 
   <main class="container grid" style="grid-template-columns:1fr;gap:16px">
     <div class="grid" style="grid-template-columns:1fr;gap:16px">
+      <!-- ===== 我的訓練 ===== -->
       <section class="card">
         <h2>輸入你的訓練</h2>
-        <p class="section-tip">填寫<strong>這次訓練</strong>的距離、爬升、（可選）下降與時間；下方會算出 EPH。</p>
+        <p class="hint">填寫<strong>這次訓練</strong>的距離、爬升、（可選）下降與時間；下方會算出 EPH。</p>
+
         <div class="grid-2">
-          <label><div class="label-title">距離 (km)</div><input id="dist" type="number" min="0" step="0.01" placeholder="例如 8.33"></label>
-          <label><div class="label-title">爬升 (m)</div><input id="gain" type="number" min="0" step="1" placeholder="例如 536"></label>
-          <label><div class="label-title">下降 (m，選填)</div><input id="descent" type="number" min="0" step="1" placeholder="例如 520"><div class="hint">用途：若要計入下坡成本（校準版），會用到此欄。</div></label>
+          <label><div>距離 (km)</div><input id="dist" type="number" min="0" step="0.01" placeholder="例如 8.33"></label>
+          <label><div>爬升 (m)</div><input id="gain" type="number" min="0" step="1" placeholder="例如 536"></label>
           <label>
-            <div class="label-title">移動時間 (hh:mm:ss)</div>
-            <input id="time" type="text" inputmode="numeric" placeholder="例如 1:15:00" aria-describedby="timeErr">
+            <div>下降 (m，選填)</div>
+            <input id="descent" type="number" min="0" step="1" placeholder="例如 520">
+            <div class="hint">建議值域 0–3000；若要計入下坡成本（校準版），請提供。</div>
+          </label>
+          <label>
+            <div>移動時間 (hh:mm:ss)</div>
+            <input id="time" type="text" inputmode="numeric" placeholder="例如 01:15:00" aria-describedby="timeErr">
             <div id="timeErr" class="err"></div>
           </label>
         </div>
 
         <details>
-          <summary>進階：校準/偏好（只影響「校準版」與規劃）</summary>
+          <summary>進階：校準/偏好 <span id="advPreset" class="hint">（Rloss：preset）</span></summary>
           <div class="grid-2" style="margin-top:8px">
-            <label><div class="label-title">R<sub>loss</sub> 預設</div><input id="rloss" type="number" min="50" max="1000" step="1" placeholder="例如 250"></label>
-            <label><div class="label-title">平路參考配速<br><span class="mono">P<sub>flat</sub>（分/公里）</span></div><input id="pflat" type="text" placeholder="例如 5:30"></label>
+            <label><div>R<sub>loss</sub> 預設</div><input id="rloss" type="number" min="50" max="1000" step="1" placeholder="例如 250"></label>
+            <label><div>平路參考配速<br><span class="mono">P<sub>flat</sub>（分/公里）</span></div><input id="pflat" type="text" placeholder="例如 05:30"></label>
           </div>
           <div class="grid-3" style="margin-top:8px">
-            <label><div class="label-title">下坡時間占比 p<sub>down</sub>（%）</div><input id="pdown" type="number" min="0" max="100" step="0.1" placeholder="例如 28"></label>
-            <label><div class="label-title">下坡平均配速 P<sub>down</sub>（分/公里，選填）</div><input id="pdownpace" type="text" placeholder="例如 4:15"></label>
-            <label><div class="label-title">下坡平均坡度 g<sub>down</sub>（%｜若無配速可估）</div><input id="gdown" type="number" min="2" max="30" step="0.5" placeholder="例如 10"></label>
+            <label><div>下坡時間占比 p<sub>down</sub>（%）</div><input id="pdown" type="number" min="0" max="100" step="0.1" placeholder="例如 28"></label>
+            <label><div>下坡平均配速 P<sub>down</sub>（分/公里，選填）</div><input id="pdownpace" type="text" placeholder="例如 04:15"></label>
+            <label><div>下坡平均坡度 g<sub>down</sub>（%｜若無配速可估）</div><input id="gdown" type="number" min="2" max="30" step="0.5" placeholder="例如 10"></label>
           </div>
-          <details style="margin-top:8px">
-            <summary>什麼是 R<sub>loss</sub>？</summary>
-            <ul class="hint">
-              <li><b>定義：</b>每下降多少 <b>米</b> 折算成 <b>1 ekm</b> 的成本；例：R<sub>loss</sub>=250 → 下降 250 m ≒ 1 ekm。</li>
-              <li><b>公式：</b>EP<sub>cal</sub> = D + G/100 + Des/R<sub>loss</sub>。</li>
-              <li><b>校準：</b>提供 p<sub>down</sub> + P<sub>down</sub> 可信度最高；否則用 g<sub>down</sub> 估算。</li>
-            </ul>
-          </details>
         </details>
 
         <div class="actions">
-          <button id="calcBtn">計算</button>
+          <button id="calcBtn" class="btn">計算</button>
           <button id="resetBtn" class="ghost">重設</button>
         </div>
       </section>
 
+      <!-- ===== 結果對比 ===== -->
       <section class="card">
         <h2 style="display:flex;align-items:center;gap:8px">
           結果對比
-          <span id="diffBadge" class="badge delta-badge" title="顯示新手 vs 校準版的 EPH 差異；正值代表校準版更快（通常下坡成本較低），負值代表更慢。">—</span>
+          <span id="diffBadge" class="badge delta-zero" title="校準版與新手版計算差異；正值代表校準版更快，負值代表更慢。">+0.0%</span>
         </h2>
-        <p class="section-tip">計算 EP / EPH；校準版會考慮下降成本。<span title="EP：距離+爬升/100(+下降/Rloss)；EPH：每小時 ekm。">ⓘ</span></p>
-        <div class="cards">
-          <div class="result-card" id="basicCard">
+        <p class="hint">計算 EP / EPH；校準版會考慮下降成本。首次出現提供定義：<span title="EP：距離 + 爬升/100 (+ 下降/Rloss)；EPH：每小時等效公里 ekm/h">ⓘ</span></p>
+
+        <div class="grid-2">
+          <div class="card" style="padding:12px">
             <h3>新手版</h3>
             <div class="numbers">
-              <div><span>EP</span><strong class="tabnum" id="basicEP">—</strong><small>ekm</small></div>
-              <div><span>EPH</span><strong class="tabnum" id="basicEPH">—</strong><small>ekm/h</small></div>
-              <div><span>E-Pace</span><strong class="tabnum" id="basicEPace">—</strong><small>分/ekm</small></div>
+              <div><span>EP</span><strong class="tabnum" id="basicEP">—</strong><small> ekm</small></div>
+              <div><span>EPH</span><strong class="tabnum" id="basicEPH">—</strong><small> ekm/h</small></div>
+              <div><span>配速</span><strong class="tabnum" id="basicEPace">—</strong><small> 分/ekm</small></div>
             </div>
             <details class="steps">
               <summary>步驟</summary>
               <pre id="basicSteps">—</pre>
               <div class="copy-row">
-                <button class="btn-sm ghost" id="copyBasicSteps">複製步驟</button>
-                <button class="btn-sm" id="copyBasicVals">複製結果</button>
+                <button class="btn ghost" id="copyBasicSteps">複製步驟</button>
+                <button class="btn" id="copyBasicVals">複製結果</button>
               </div>
             </details>
           </div>
 
-          <div class="result-card" id="calCard">
+          <div class="card" style="padding:12px">
             <h3>校準版</h3>
             <div class="numbers">
-              <div><span>EP<sub>cal</sub></span><strong class="tabnum" id="calEP">—</strong><small>ekm</small></div>
-              <div><span>EPH<sub>cal</sub></span><strong class="tabnum" id="calEPH">—</strong><small>ekm/h</small></div>
-              <div><span>E-Pace<sub>cal</sub></span><strong class="tabnum" id="calEPace">—</strong><small>分/ekm</small></div>
+              <div><span>EP<sub>cal</sub></span><strong class="tabnum" id="calEP">—</strong><small> ekm</small></div>
+              <div><span>EPH<sub>cal</sub></span><strong class="tabnum" id="calEPH">—</strong><small> ekm/h</small></div>
+              <div><span>配速</span><strong class="tabnum" id="calEPace">—</strong><small> 分/ekm</small></div>
             </div>
             <div class="hint" id="calMeta">R<sub>loss</sub>（使用中）＝—</div>
             <details class="steps">
               <summary>步驟</summary>
               <pre id="calSteps">—</pre>
               <div class="copy-row">
-                <button class="btn-sm ghost" id="copyCalSteps">複製步驟</button>
-                <button class="btn-sm" id="copyCalVals">複製結果</button>
+                <button class="btn ghost" id="copyCalSteps">複製步驟</button>
+                <button class="btn" id="copyCalVals">複製結果</button>
               </div>
             </details>
           </div>
         </div>
 
         <div class="actions">
-          <button id="shareBtn">匯出分享圖（PNG，透明）</button>
+          <button id="shareBtn" class="btn">匯出分享圖（PNG，透明）</button>
           <a id="downloadLink" class="ghost" style="display:none"></a>
         </div>
         <canvas id="shareCanvas" width="1000" height="420" style="display:none"></canvas>
       </section>
     </div>
 
-    <!-- 右欄：關門時間換算 + 完賽預估（原邏輯保留） -->
+    <!-- ===== 右欄：關門換算 + 完賽預估 ===== -->
     <div class="stack">
       <section class="card">
         <h2>關門時間換算</h2>
-        <p class="section-tip">輸入目標賽事與關門時間，再填你的「訓練段」；下方會算出這段訓練所需時間。<span class="hint">安全緩衝 (%) 會把訓練時間再加保守比例。</span></p>
+        <p class="hint">輸入目標賽事與關門時間；再填你的「訓練段」，換算這段訓練所需時間。安全緩衝會把訓練時間再加保守比例。</p>
         <div class="grid-3">
-          <label><div class="label-title">賽事距離 (km)</div><input id="raceD" type="number" min="0" step="0.01" placeholder="例如 30"></label>
-          <label><div class="label-title">賽事爬升 (m)</div><input id="raceG" type="number" min="0" step="1" placeholder="例如 1800"></label>
-          <label><div class="label-title">賽事下降 (m，選填)</div><input id="raceDes" type="number" min="0" step="1" placeholder="例如 1800"></label>
+          <label><div>賽事距離 (km)</div><input id="raceD" type="number" min="0" step="0.01" placeholder="例如 30"></label>
+          <label><div>賽事爬升 (m)</div><input id="raceG" type="number" min="0" step="1" placeholder="例如 1800"></label>
+          <label><div>賽事下降 (m，選填)</div><input id="raceDes" type="number" min="0" step="1" placeholder="例如 1800"></label>
 
-          <label><div class="label-title">關門時間 (hh:mm:ss)</div>
-            <input id="raceCutoff" type="text" inputmode="numeric" placeholder="例如 6:00:00" aria-describedby="raceCutoffErr">
+          <label><div>關門時間 (hh:mm:ss)</div>
+            <input id="raceCutoff" type="text" inputmode="numeric" placeholder="例如 06:00:00" aria-describedby="raceCutoffErr">
             <div id="raceCutoffErr" class="err"></div>
           </label>
-          <label><div class="label-title">訓練段距離 (km)</div><input id="trainD" type="number" min="0" step="0.01" placeholder="例如 5"></label>
-          <label><div class="label-title">訓練段爬升 (m)</div><input id="trainG" type="number" min="0" step="1" placeholder="例如 500"></label>
-          <label><div class="label-title">訓練段下降 (m，選填)</div><input id="trainDes" type="number" min="0" step="1" placeholder="例如 0"></label>
-          <label><div class="label-title">安全緩衝 (%)</div><input id="bufferPct" type="number" min="0" max="30" step="1" placeholder="例如 0"></label>
+          <label><div>訓練段距離 (km)</div><input id="trainD" type="number" min="0" step="0.01" placeholder="例如 5"></label>
+          <label><div>訓練段爬升 (m)</div><input id="trainG" type="number" min="0" step="1" placeholder="例如 500"></label>
+          <label>
+            <div>訓練段下降 (m，選填)</div>
+            <input id="trainDes" type="number" min="0" step="1" placeholder="例如 0">
+            <div class="hint">若訓練段包含長下坡，建議填寫。</div>
+          </label>
+          <label>
+            <div>安全緩衝 (%)</div>
+            <input id="bufferPct" type="number" min="0" max="30" step="1" placeholder="例如 0">
+            <div class="hint">建議 0–10；會把訓練時間額外增加保守幅度。</div>
+          </label>
+
           <div class="actions" style="grid-column:1/-1">
-            <button id="planBtn">計算訓練時間</button>
+            <button id="planBtn" class="btn">計算訓練時間</button>
             <button id="planResetBtn" class="ghost">重設</button>
           </div>
         </div>
 
-        <div class="cards" style="margin-top:8px">
-          <div class="result-card">
+        <div class="grid-2" style="margin-top:8px">
+          <div class="card" style="padding:12px">
             <h3>新手版規劃</h3>
             <div class="numbers">
-              <div><span>EPH<sub>race</sub></span><strong class="tabnum" id="raceBasicEPH">—</strong><small>ekm/h</small></div>
-              <div><span>訓練時間</span><strong class="tabnum" id="trainBasicTime">—</strong><small>hh:mm:ss</small></div>
+              <div><span>EPH<sub>race</sub></span><strong class="tabnum" id="raceBasicEPH">—</strong><small> ekm/h</small></div>
+              <div><span>訓練時間</span><strong class="tabnum" id="trainBasicTime">—</strong><small> hh:mm:ss</small></div>
             </div>
             <details class="steps"><summary>步驟</summary><pre id="planBasicSteps">—</pre></details>
           </div>
-          <div class="result-card">
+          <div class="card" style="padding:12px">
             <h3>校準版規劃</h3>
             <div class="numbers">
-              <div><span>EPH<sub>race,cal</sub></span><strong class="tabnum" id="raceCalEPH">—</strong><small>ekm/h</small></div>
-              <div><span>訓練時間</span><strong class="tabnum" id="trainCalTime">—</strong><small>hh:mm:ss</small></div>
+              <div><span>EPH<sub>race,cal</sub></span><strong class="tabnum" id="raceCalEPH">—</strong><small> ekm/h</small></div>
+              <div><span>訓練時間</span><strong class="tabnum" id="trainCalTime">—</strong><small> hh:mm:ss</small></div>
             </div>
             <details class="steps"><summary>步驟</summary><pre id="planCalSteps">—</pre></details>
           </div>
@@ -253,39 +252,42 @@
 
       <section class="card">
         <h2>完賽時間預估（用我的訓練 EPH）</h2>
-        <p class="section-tip">已套用耐力衰退；若填「進階」風險檢核，會再做保守調整。</p>
-        <div class="cards">
-          <div class="result-card">
+        <p class="hint">已套用耐力衰退；若填「進階」風險檢核，會再做保守調整。</p>
+
+        <div class="grid-2">
+          <div class="card" style="padding:12px">
             <h3>新手版預估</h3>
             <div class="numbers">
-              <div><span>預估完賽時間</span><strong class="tabnum" id="predBasicTime">—</strong><small>hh:mm:ss</small></div>
+              <div><span>預估完賽時間</span><strong class="tabnum" id="predBasicTime">—</strong><small> hh:mm:ss</small></div>
               <div><span>判斷</span><strong id="predBasicNote">—</strong></div>
             </div>
-            <div class="hint" id="predBasicNeed"></div>
+            <!-- 行動建議（上移到判斷下） -->
+            <ul id="predBasicNeed" class="hint" style="margin:8px 0 4px 18px;list-style:disc;"></ul>
+            <div class="hint" id="predBasicSlowest">—</div>
             <details class="steps"><summary>步驟</summary><pre id="predBasicSteps">—</pre></details>
           </div>
-          <div class="result-card">
+
+          <div class="card" style="padding:12px">
             <h3>校準版預估</h3>
             <div class="numbers">
-              <div><span>預估完賽時間</span><strong class="tabnum" id="predCalTime">—</strong><small>hh:mm:ss</small></div>
+              <div><span>預估完賽時間</span><strong class="tabnum" id="predCalTime">—</strong><small> hh:mm:ss</small></div>
               <div><span>判斷</span><strong id="predCalNote">—</strong></div>
             </div>
-            <div class="hint" id="predCalNeed"></div>
+            <ul id="predCalNeed" class="hint" style="margin:8px 0 4px 18px;list-style:disc;"></ul>
+            <div class="hint" id="predCalSlowest">—</div>
             <details class="steps"><summary>步驟</summary><pre id="predCalSteps">—</pre></details>
           </div>
         </div>
 
         <details style="margin-top:8px">
           <summary>進階：訓練量風險檢核（可選）</summary>
-          <p class="section-tip" style="line-height:1.9;margin-bottom:10px">
-            填你最近訓練的「單次最長」與「近 4 週平均」。若不足，預估時間會再保守一些。
-          </p>
+          <p class="hint" style="line-height:1.9;margin-bottom:10px">填你最近訓練的「單次最長」與「近 4 週平均」。若不足，預估時間會再保守一些。</p>
           <div class="grid-3">
-            <label><div class="label-title">單次最長距離 (km)</div><input id="maxLongD" type="number" min="0" step="0.1" placeholder="例如 24"></label>
-            <label><div class="label-title">單次最長爬升 (m)</div><input id="maxLongG" type="number" min="0" step="1" placeholder="例如 1200"></label>
-            <label><div class="label-title">單次最長時間 (hh:mm:ss)</div><input id="maxLongTime" type="text" inputmode="numeric" placeholder="例如 3:30:00" aria-describedby="maxTimeErr"><div id="maxTimeErr" class="err"></div></label>
-            <label><div class="label-title">近 4 週平均距離 (km/週)</div><input id="wkAvgD" type="number" min="0" step="0.1" placeholder="例如 42"></label>
-            <label><div class="label-title">近 4 週平均爬升 (m/週)</div><input id="wkAvgG" type="number" min="0" step="1" placeholder="例如 1800"></label>
+            <label><div>單次最長距離 (km)</div><input id="maxLongD" type="number" min="0" step="0.1" placeholder="例如 24"></label>
+            <label><div>單次最長爬升 (m)</div><input id="maxLongG" type="number" min="0" step="1" placeholder="例如 1200"></label>
+            <label><div>單次最長時間 (hh:mm:ss)</div><input id="maxLongTime" type="text" inputmode="numeric" placeholder="例如 03:30:00" aria-describedby="maxTimeErr"><div id="maxTimeErr" class="err"></div></label>
+            <label><div>近 4 週平均距離 (km/週)</div><input id="wkAvgD" type="number" min="0" step="0.1" placeholder="例如 42"></label>
+            <label><div>近 4 週平均爬升 (m/週)</div><input id="wkAvgG" type="number" min="0" step="1" placeholder="例如 1800"></label>
           </div>
           <ul id="riskList" class="hint" style="margin-top:10px"></ul>
         </details>
@@ -301,7 +303,7 @@
   </section>
 
   <footer class="container">
-    <p>© 2025 Trail EPH · 計算以你輸入為準，請善用「步驟」檢視公式。</p>
+    <p class="hint">© 2025 Trail EPH · 計算以你輸入為準，請善用「步驟」檢視公式。</p>
   </footer>
 
   <script src="main.js"></script>
