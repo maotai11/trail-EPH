@@ -11,6 +11,7 @@
   <link rel="stylesheet" href="styles.css" />
   <style>
     :root{--bg:#0b1220;--card:#0f172a;--border:#1e293b;--muted:#94a3b8}
+    body{background:var(--bg);color:#e5e7eb;font-family:ui-sans-serif,system-ui,"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif}
     .container{max-width:72rem;margin:0 auto;padding:0 1rem}
     .grid{display:grid;gap:16px}
     .grid-2{display:grid;gap:12px;grid-template-columns:1fr}
@@ -28,7 +29,7 @@
     .btn:hover{background:#0f172a}
     .btn-primary{border-color:#38bdf8;background:#0ea5e91a;color:#7dd3fc}
     .btn-primary:hover{background:#0ea5e933}
-    .badge{display:inline-flex;align-items:center;gap:6px;border:1px solid #2b3648;border-radius:999px;padding:2px 10px;font-size:12px}
+    .badge{display:inline-flex;align-items:center;gap:6px;border:1px solid #2b3648;border-radius:999px;padding:2px 10px;font-size:12px;white-space:nowrap}
     .risk-low{color:#10b981;border-color:#10b98133;background:#10b9811a}
     .risk-mid{color:#f59e0b;border-color:#f59e0b33;background:#f59e0b1a}
     .risk-high{color:#ef4444;border-color:#ef444433;background:#ef44441a}
@@ -37,16 +38,17 @@
     .delta-neg{color:#f43f5e;border-color:#f43f5e55;background:#f43f5e1a}
     .delta-zero{color:#cbd5e1;border-color:#475569;background:#334155}
     .numbers{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:6px}
-    .numbers>div{border:1px solid #233044;background:#0d1526;border-radius:12px;padding:10px}
+    .numbers>div{border:1px solid #233044;background:#0d1526;border-radius:12px;padding:10px;display:flex;flex-direction:column}
     .numbers span{color:var(--muted);font-size:12px}
     .numbers strong{font-size:24px}
     .steps summary{cursor:pointer}
     .copy-row{display:flex;gap:8px;margin-top:6px}
+    .small-muted{font-size:12px;color:#a8b5c7}
 
-    /* ===== 摘要列（Segmented + 單一時間） ===== */
+    /* ===== 摘要列 ===== */
     .summary-bar{position:sticky;top:0;z-index:40;background:linear-gradient(180deg,#0b1220 0%,#0f172a 100%);border-bottom:1px solid var(--border)}
     .summary{display:grid;gap:12px;padding:12px 10px;grid-template-columns:1fr}
-    @media(min-width:980px){.summary{grid-template-columns:1fr 1.2fr auto}}
+    @media(min-width:980px){.summary{grid-template-columns:20% 1fr 20%}}
     .sum-box{border:1px solid #233044;background:#0b1220;border-radius:14px;padding:10px 12px;display:flex;align-items:center;gap:14px}
     .sum-label{color:var(--muted);font-size:12px}
     .sum-value{font-weight:800;font-size:28px}
@@ -56,14 +58,14 @@
     .seg button.active{background:#0b1220;color:#fff}
     .sum-mid{display:flex;gap:12px;align-items:center}
     .sum-cta{display:flex;gap:8px;align-items:center;justify-content:flex-end}
-    .summary-time{min-width:180px;border:1px solid #233044;background:#0d1526;border-radius:12px;padding:8px 10px}
+    .summary-time{min-width:220px;border:1px solid #233044;background:#0d1526;border-radius:12px;padding:8px 10px}
     .summary-time .sum-value{font-size:28px}
   </style>
 </head>
 <body>
   <header class="container">
     <h1>Trail EPH 計算器（MVP）</h1>
-    <p class="hint">新手友善 EP/EPH × 進階校準（R<sub>loss</sub>）｜訓練與賽事換算</p>
+    <p class="hint">一般友善 EP/EPH × 進階校準（R<sub>loss</sub>）｜訓練與賽事換算</p>
   </header>
 
   <!-- ===== 頂部摘要列（單一時間 + Segmented） ===== -->
@@ -73,18 +75,18 @@
       <div class="sum-box">
         <div>
           <div class="sum-label">我的訓練 EPH <span id="summaryMode" class="sum-unit"></span>
-            <span class="sum-unit" title="EP：距離 + 爬升/100 (+ 下降/Rloss)；EPH：每小時等效公里（ekm/h）。">ⓘ</span>
+            <span class="sum-unit" title="EP：距離 + 爬升/100（＋下降/Rloss）；EPH：每小時等效公里（ekm/h）。">ⓘ</span>
           </div>
           <div class="tabnum sum-value" id="summaryEPH">—</div>
         </div>
       </div>
 
-      <!-- 中：預估完賽 + Segmented 切換 -->
+      <!-- 中：預估完賽 + Segmented 切換（一般｜進階） -->
       <div class="sum-box" style="justify-content:space-between">
         <div class="sum-mid">
-          <div class="seg" role="tablist" aria-label="切換預估模式">
-            <button id="segNovice" class="active" role="tab" aria-selected="true">新手版</button>
-            <button id="segCal" role="tab" aria-selected="false">校準版</button>
+          <div class="seg" role="radiogroup" aria-label="切換預估模式">
+            <button id="segNovice" class="active" role="radio" aria-checked="true" aria-label="一般">一般</button>
+            <button id="segCal" role="radio" aria-checked="false" aria-label="進階">進階</button>
           </div>
           <div class="summary-time">
             <div class="sum-label">預估完賽時間</div>
@@ -94,9 +96,9 @@
         </div>
       </div>
 
-      <!-- 右：風險晶片 + CTA -->
+      <!-- 右：訓練量風險晶片 + CTA -->
       <div class="sum-box sum-cta">
-        <span id="summaryRisk" class="badge" title="分級規則：綜合單次最長距離/爬升/時間與近四週平均距離/爬升的覆蓋率。">風險：—</span>
+        <span id="summaryRisk" class="badge" title="訓練量風險（評估依據：單次最長 × 近 4 週平均）">訓練量風險：—</span>
         <button id="summaryRecalc" class="btn btn-primary" accesskey="r" aria-label="重新計算（Alt+R）">重新計算</button>
         <button id="summaryShare" class="btn" aria-label="匯出分享圖">分享</button>
       </div>
@@ -105,9 +107,9 @@
 
   <main class="container grid" style="grid-template-columns:1fr;gap:16px">
     <div class="grid" style="grid-template-columns:1fr;gap:16px">
-      <!-- ===== 我的訓練 ===== -->
-      <section class="card">
-        <h2>輸入你的訓練</h2>
+      <!-- ===== 輸入你的訓練 ===== -->
+      <section class="card" aria-labelledby="inputTitle">
+        <h2 id="inputTitle">輸入你的訓練</h2>
         <p class="hint">填寫<strong>這次訓練</strong>的距離、爬升、（可選）下降與時間；下方會算出 EPH。</p>
 
         <div class="grid-2">
@@ -116,7 +118,7 @@
           <label>
             <div>下降 (m，選填)</div>
             <input id="descent" type="number" min="0" step="1" placeholder="例如 520">
-            <div class="hint">建議值域 0–3000；若要計入下坡成本（校準版），請提供。</div>
+            <div class="hint">若要在「進階」計算納入下坡成本，請提供。</div>
           </label>
           <label>
             <div>移動時間 (hh:mm:ss)</div>
@@ -126,15 +128,32 @@
         </div>
 
         <details>
-          <summary>進階：校準/偏好 <span id="advPreset" class="hint">（Rloss：preset）</span></summary>
+          <summary>進階：校準／偏好 <span id="advPreset" class="hint">（Rloss：preset）</span></summary>
           <div class="grid-2" style="margin-top:8px">
-            <label><div>R<sub>loss</sub> 預設</div><input id="rloss" type="number" min="50" max="1000" step="1" placeholder="例如 250"></label>
+            <label>
+              <div>R<sub>loss</sub> 預設</div>
+              <input id="rloss" type="number" min="50" max="1000" step="1" placeholder="例如 250">
+              <div class="small-muted">
+                <span title="如何估算 Rloss？">ⓘ</span> 建議 150–400。Rloss 代表「每 1 ekm 下降等效多少公尺」，數值越小代表下坡越耗時。
+                <br>估算方法：記錄一段長下坡的實跑配速與時間占比，與平路配速比較，反推下降造成的等效距離差，得到 Rloss。
+              </div>
+            </label>
             <label><div>平路參考配速<br><span class="mono">P<sub>flat</sub>（分/公里）</span></div><input id="pflat" type="text" placeholder="例如 05:30"></label>
           </div>
           <div class="grid-3" style="margin-top:8px">
-            <label><div>下坡時間占比 p<sub>down</sub>（%）</div><input id="pdown" type="number" min="0" max="100" step="0.1" placeholder="例如 28"></label>
+            <label>
+              <div>下坡時間占比 p<sub>down</sub>（%）</div>
+              <input id="pdown" type="number" min="0" max="100" step="0.1" placeholder="例如 28" aria-describedby="pdownErr">
+              <div id="pdownErr" class="err"></div>
+              <div class="hint">建議 10–60 %</div>
+            </label>
             <label><div>下坡平均配速 P<sub>down</sub>（分/公里，選填）</div><input id="pdownpace" type="text" placeholder="例如 04:15"></label>
-            <label><div>下坡平均坡度 g<sub>down</sub>（%｜若無配速可估）</div><input id="gdown" type="number" min="2" max="30" step="0.5" placeholder="例如 10"></label>
+            <label>
+              <div>下坡平均坡度 g<sub>down</sub>（%｜無配速可估）</div>
+              <input id="gdown" type="number" min="0" max="60" step="0.5" placeholder="例如 10" aria-describedby="gdownErr">
+              <div id="gdownErr" class="err"></div>
+              <div class="hint">建議 3–20 %</div>
+            </label>
           </div>
         </details>
 
@@ -144,17 +163,17 @@
         </div>
       </section>
 
-      <!-- ===== 結果對比 ===== -->
+      <!-- ===== 結果對比（一般 vs 進階） ===== -->
       <section class="card">
         <h2 style="display:flex;align-items:center;gap:8px">
           結果對比
-          <span id="diffBadge" class="badge delta-zero" title="校準版與新手版計算差異；正值代表校準版更快，負值代表更慢。">+0.0%</span>
+          <span id="diffBadge" class="badge delta-zero" title="進階版與一般版計算差異；正值代表進階更快，負值代表更慢。">+0.0%</span>
         </h2>
-        <p class="hint">計算 EP / EPH；校準版會考慮下降成本。首次出現提供定義：<span title="EP：距離 + 爬升/100 (+ 下降/Rloss)；EPH：每小時等效公里 ekm/h">ⓘ</span></p>
+        <p class="hint">計算 EP／EPH；進階版會考慮下降成本。<span title="EP：距離 + 爬升/100（＋下降/Rloss）；EPH：每小時等效公里 ekm/h">ⓘ 定義</span></p>
 
         <div class="grid-2">
           <div class="card" style="padding:12px">
-            <h3>新手版</h3>
+            <h3>一般</h3>
             <div class="numbers">
               <div><span>EP</span><strong class="tabnum" id="basicEP">—</strong><small> ekm</small></div>
               <div><span>EPH</span><strong class="tabnum" id="basicEPH">—</strong><small> ekm/h</small></div>
@@ -164,14 +183,14 @@
               <summary>步驟</summary>
               <pre id="basicSteps">—</pre>
               <div class="copy-row">
-                <button class="btn ghost" id="copyBasicSteps">複製步驟</button>
+                <button class="btn ghost" id="copyBasicSteps">複製公式</button>
                 <button class="btn" id="copyBasicVals">複製結果</button>
               </div>
             </details>
           </div>
 
           <div class="card" style="padding:12px">
-            <h3>校準版</h3>
+            <h3>進階</h3>
             <div class="numbers">
               <div><span>EP<sub>cal</sub></span><strong class="tabnum" id="calEP">—</strong><small> ekm</small></div>
               <div><span>EPH<sub>cal</sub></span><strong class="tabnum" id="calEPH">—</strong><small> ekm/h</small></div>
@@ -182,12 +201,13 @@
               <summary>步驟</summary>
               <pre id="calSteps">—</pre>
               <div class="copy-row">
-                <button class="btn ghost" id="copyCalSteps">複製步驟</button>
+                <button class="btn ghost" id="copyCalSteps">複製公式</button>
                 <button class="btn" id="copyCalVals">複製結果</button>
               </div>
             </details>
           </div>
         </div>
+        <div id="diffLine" class="hint" style="margin-top:6px">—</div>
 
         <div class="actions">
           <button id="shareBtn" class="btn">匯出分享圖（PNG，透明）</button>
@@ -200,8 +220,20 @@
     <!-- ===== 右欄：關門換算 + 完賽預估 ===== -->
     <div class="stack">
       <section class="card">
-        <h2>關門時間換算</h2>
+        <h2 style="display:flex;align-items:center;gap:8px">關門時間換算
+          <span id="planCalLabel" class="badge">使用中：preset</span>
+        </h2>
         <p class="hint">輸入目標賽事與關門時間；再填你的「訓練段」，換算這段訓練所需時間。安全緩衝會把訓練時間再加保守比例。</p>
+
+        <div id="planEmpty" class="card" style="padding:12px;margin-bottom:8px">
+          <strong>尚未計算</strong>
+          <ul class="hint" style="margin:6px 0 0 18px;list-style:disc;">
+            <li>何時使用？先知道賽事的距離／爬升／關門，用來規劃一段訓練需要跑多久。</li>
+            <li>需要哪些輸入？賽事距離 (km)、爬升 (m)、關門時間 (hh:mm:ss)、你的訓練段距離與爬升。</li>
+            <li>進階：Rloss、平路配速 P<sub>flat</sub>、下坡占比 p<sub>down</sub>、坡度 g<sub>down</sub> 可提升準確度。</li>
+          </ul>
+        </div>
+
         <div class="grid-3">
           <label><div>賽事距離 (km)</div><input id="raceD" type="number" min="0" step="0.01" placeholder="例如 30"></label>
           <label><div>賽事爬升 (m)</div><input id="raceG" type="number" min="0" step="1" placeholder="例如 1800"></label>
@@ -213,11 +245,7 @@
           </label>
           <label><div>訓練段距離 (km)</div><input id="trainD" type="number" min="0" step="0.01" placeholder="例如 5"></label>
           <label><div>訓練段爬升 (m)</div><input id="trainG" type="number" min="0" step="1" placeholder="例如 500"></label>
-          <label>
-            <div>訓練段下降 (m，選填)</div>
-            <input id="trainDes" type="number" min="0" step="1" placeholder="例如 0">
-            <div class="hint">若訓練段包含長下坡，建議填寫。</div>
-          </label>
+          <label><div>訓練段下降 (m，選填)</div><input id="trainDes" type="number" min="0" step="1" placeholder="例如 0"></label>
           <label>
             <div>安全緩衝 (%)</div>
             <input id="bufferPct" type="number" min="0" max="30" step="1" placeholder="例如 0">
@@ -232,7 +260,7 @@
 
         <div class="grid-2" style="margin-top:8px">
           <div class="card" style="padding:12px">
-            <h3>新手版規劃</h3>
+            <h3>一般規劃</h3>
             <div class="numbers">
               <div><span>EPH<sub>race</sub></span><strong class="tabnum" id="raceBasicEPH">—</strong><small> ekm/h</small></div>
               <div><span>訓練時間</span><strong class="tabnum" id="trainBasicTime">—</strong><small> hh:mm:ss</small></div>
@@ -240,7 +268,7 @@
             <details class="steps"><summary>步驟</summary><pre id="planBasicSteps">—</pre></details>
           </div>
           <div class="card" style="padding:12px">
-            <h3>校準版規劃</h3>
+            <h3>進階規劃</h3>
             <div class="numbers">
               <div><span>EPH<sub>race,cal</sub></span><strong class="tabnum" id="raceCalEPH">—</strong><small> ekm/h</small></div>
               <div><span>訓練時間</span><strong class="tabnum" id="trainCalTime">—</strong><small> hh:mm:ss</small></div>
@@ -256,48 +284,47 @@
 
         <div class="grid-2">
           <div class="card" style="padding:12px">
-            <h3>新手版預估</h3>
+            <h3>一般預估</h3>
             <div class="numbers">
               <div><span>預估完賽時間</span><strong class="tabnum" id="predBasicTime">—</strong><small> hh:mm:ss</small></div>
               <div><span>判斷</span><strong id="predBasicNote">—</strong></div>
             </div>
-            <!-- 行動建議（上移到判斷下） -->
             <ul id="predBasicNeed" class="hint" style="margin:8px 0 4px 18px;list-style:disc;"></ul>
             <div class="hint" id="predBasicSlowest">—</div>
             <details class="steps"><summary>步驟</summary><pre id="predBasicSteps">—</pre></details>
           </div>
 
           <div class="card" style="padding:12px">
-            <h3>校準版預估</h3>
+            <h3>進階預估</h3>
             <div class="numbers">
               <div><span>預估完賽時間</span><strong class="tabnum" id="predCalTime">—</strong><small> hh:mm:ss</small></div>
               <div><span>判斷</span><strong id="predCalNote">—</strong></div>
             </div>
             <ul id="predCalNeed" class="hint" style="margin:8px 0 4px 18px;list-style:disc;"></ul>
             <div class="hint" id="predCalSlowest">—</div>
-            <details class="steps"><summary>步驟</summary><pre id="predCalSteps">—</pre></details>
+            <details style="margin-top:8px">
+              <summary>進階：訓練量風險檢核（可選）</summary>
+              <p class="hint" style="line-height:1.9;margin-bottom:10px">填你最近訓練的「單次最長」與「近 4 週平均」。若不足，預估時間會再保守一些。</p>
+              <div class="grid-3">
+                <label><div>單次最長距離 (km)</div><input id="maxLongD" type="number" min="0" step="0.1" placeholder="例如 24"></label>
+                <label><div>單次最長爬升 (m)</div><input id="maxLongG" type="number" min="0" step="1" placeholder="例如 1200"></label>
+                <label><div>單次最長時間 (hh:mm:ss)</div><input id="maxLongTime" type="text" inputmode="numeric" placeholder="例如 03:30:00" aria-describedby="maxTimeErr"><div id="maxTimeErr" class="err"></div></label>
+                <label><div>近 4 週平均距離 (km/週)</div><input id="wkAvgD" type="number" min="0" step="0.1" placeholder="例如 42"></label>
+                <label><div>近 4 週平均爬升 (m/週)</div><input id="wkAvgG" type="number" min="0" step="1" placeholder="例如 1800"></label>
+              </div>
+              <ul id="riskList" class="hint" style="margin-top:10px"></ul>
+            </details>
           </div>
         </div>
-
-        <details style="margin-top:8px">
-          <summary>進階：訓練量風險檢核（可選）</summary>
-          <p class="hint" style="line-height:1.9;margin-bottom:10px">填你最近訓練的「單次最長」與「近 4 週平均」。若不足，預估時間會再保守一些。</p>
-          <div class="grid-3">
-            <label><div>單次最長距離 (km)</div><input id="maxLongD" type="number" min="0" step="0.1" placeholder="例如 24"></label>
-            <label><div>單次最長爬升 (m)</div><input id="maxLongG" type="number" min="0" step="1" placeholder="例如 1200"></label>
-            <label><div>單次最長時間 (hh:mm:ss)</div><input id="maxLongTime" type="text" inputmode="numeric" placeholder="例如 03:30:00" aria-describedby="maxTimeErr"><div id="maxTimeErr" class="err"></div></label>
-            <label><div>近 4 週平均距離 (km/週)</div><input id="wkAvgD" type="number" min="0" step="0.1" placeholder="例如 42"></label>
-            <label><div>近 4 週平均爬升 (m/週)</div><input id="wkAvgG" type="number" min="0" step="1" placeholder="例如 1800"></label>
-          </div>
-          <ul id="riskList" class="hint" style="margin-top:10px"></ul>
-        </details>
       </section>
     </div>
   </main>
 
   <section class="container card">
     <h2>歷史紀錄（僅本機）</h2>
-    <div class="actions"><button id="clearHistoryBtn" class="ghost">清除歷史</button></div>
+    <div class="actions">
+      <button id="clearHistoryBtn" class="ghost">清除歷史</button>
+    </div>
     <div id="historyList" class="hint" style="margin-top:10px"></div>
     <p class="hint">說明：歷史僅存於你的瀏覽器（localStorage），不會上傳。</p>
   </section>
