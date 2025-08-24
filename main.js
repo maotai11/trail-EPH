@@ -189,7 +189,7 @@ EPH_cal = EP_cal / (T/3600) = ${fmt(EPc,2)} / (${fmt(T/3600,3)} h) = ${fmt(EPHc,
   $('copyBasicVals').dataset.copy = `新手版 EP=${fmt(EPb,2)} ekm，EPH=${fmt(EPHb,2)} ekm/h，配速=${EPaceb}`;
   $('copyCalVals').dataset.copy   = `校準版 EP=${fmt(EPc,2)} ekm，EPH=${fmt(EPHc,2)} ekm/h，配速=${EPacec}，Rloss=${fmt(r_use,0)}`;
 
-  LAST={D,G,Des,T,EPH_basic:EPHb,EPH_cal:EPHc,r_use,mode:isFinite(EPHc)?'校準版':'新手版'};
+  LAST={D,G,Des,EPH_basic:EPHb,EPH_cal:EPHc,T, r_use, mode:isFinite(EPHc)?'校準版':'新手版'};
   pushHistory({ts:Date.now(),type:'EPH 計算',summary:`D=${fmt(D,2)}km, G=${fmt(G,0)}m, Des=${isFinite(Des)?fmt(Des,0):'-'}m, T=${secondsToHMS(T)}, EPH=${fmt(EPHb,2)}/${fmt(EPHc,2)} (Rloss=${fmt(r_use,0)})`});
 
   predictFinish();
@@ -350,15 +350,30 @@ async function makeSharePNG(){
   const a=$('downloadLink'); a.href=url; a.download=`eph_${Date.now()}.png`; a.click();
 }
 
-// ========= 時間輸入：自動補零遮罩 =========
-function maskTime(el){ // 例如輸入 2 10 32 → 02:10:32
-  const raw=el.value.replace(/[^\d]/g,'').slice(0,6).padStart(6,'0');
-  el.value = `${raw.slice(0,2)}:${raw.slice(2,4)}:${raw.slice(4,6)}`;
+// ========= 時間輸入（修正版）：輸入中只插冒號；失焦才補零與驗證 =========
+function digitsToHMS(digits) {
+  const s = digits.padStart(6, '0'); // 6 位補零：hhmmss
+  return `${s.slice(0,2)}:${s.slice(2,4)}:${s.slice(4,6)}`;
 }
-function validateTime(el,errId){
-  const s=toSeconds(el.value); const err=$(errId);
-  if(!isFinite(s)) err.textContent='格式需為 hh:mm:ss';
-  else { el.value=secondsToHMS(s); err.textContent=''; }
+function maskTime(el) {
+  const d = el.value.replace(/[^\d]/g, '').slice(0, 6);
+  if (d.length === 0) { el.value = ''; return; }
+  if (d.length <= 2) { el.value = d; return; }                                // hh
+  if (d.length <= 4) { el.value = `${d.slice(0,2)}:${d.slice(2)}`; return; }  // hh:mm
+  el.value = `${d.slice(0,2)}:${d.slice(2,4)}:${d.slice(4)}`;                 // hh:mm:ss（輸入中）
+}
+function validateTime(el, errId) {
+  const d = el.value.replace(/[^\d]/g, '');
+  const err = $(errId);
+  if (d.length === 0) { err.textContent = ''; el.value = ''; return; }
+  const hms = digitsToHMS(d);
+  const s = toSeconds(hms);
+  if (!isFinite(s)) {
+    err.textContent = '格式需為 hh:mm:ss';
+  } else {
+    err.textContent = '';
+    el.value = secondsToHMS(s); // 正規化
+  }
 }
 
 // ========= 綁定 =========
@@ -401,7 +416,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
   ['maxLongD','maxLongG','maxLongTime','wkAvgD','wkAvgG','raceD','raceG','raceDes','raceCutoff','bufferPct']
     .forEach(id=>{ const el=$(id); if(el) el.addEventListener('input', ()=>predictFinish()); });
 
-  // 時間欄位遮罩
+  // 時間欄位遮罩（輸入中只插冒號）與失焦驗證（補零）
   [['time','timeErr'],['raceCutoff','raceCutoffErr'],['maxLongTime','maxTimeErr']].forEach(([id,err])=>{
     const el=$(id); if(!el) return;
     el.addEventListener('input', ()=>maskTime(el));
