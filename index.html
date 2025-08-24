@@ -58,7 +58,7 @@
     .seg button.active{background:#0b1220;color:#fff}
     .sum-mid{display:flex;gap:12px;align-items:center}
     .sum-cta{display:flex;gap:8px;align-items:center;justify-content:flex-end}
-    .summary-time{min-width:220px;border:1px solid #233044;background:#0d1526;border-radius:12px;padding:8px 10px}
+    .summary-time{min-width:260px;border:1px solid #233044;background:#0d1526;border-radius:12px;padding:8px 10px}
     .summary-time .sum-value{font-size:28px}
   </style>
 </head>
@@ -81,7 +81,7 @@
         </div>
       </div>
 
-      <!-- 中：預估完賽 + Segmented 切換（一般｜進階） -->
+      <!-- 中：預估完賽 + Segmented 切換（一般｜進階） + 建議最低門檻 -->
       <div class="sum-box" style="justify-content:space-between">
         <div class="sum-mid">
           <div class="seg" role="radiogroup" aria-label="切換預估模式">
@@ -92,6 +92,7 @@
             <div class="sum-label">預估完賽時間</div>
             <div class="tabnum sum-value" id="summaryTime">—</div>
             <div class="badge" id="summaryVerdict">—</div>
+            <div class="small-muted" id="summaryMinReq" style="margin-top:6px">最低門檻（單次）：—</div>
           </div>
         </div>
       </div>
@@ -280,7 +281,7 @@
 
       <section class="card">
         <h2>完賽時間預估（用我的訓練 EPH）</h2>
-        <p class="hint">已套用耐力衰退；若填「進階」風險檢核，會再做保守調整。</p>
+        <p class="hint">已套用「訓練量風險」；耐力衰退僅在有未達門檻時才生效，未達越多套用越強。</p>
 
         <div class="grid-2">
           <div class="card" style="padding:12px">
